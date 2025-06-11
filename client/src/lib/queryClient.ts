@@ -32,6 +32,12 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
+  
+  // Return JSON response for successful requests
+  if (res.headers.get('content-type')?.includes('application/json')) {
+    return res.json();
+  }
+  
   return res;
 }
 

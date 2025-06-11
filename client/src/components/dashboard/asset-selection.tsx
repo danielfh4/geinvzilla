@@ -55,8 +55,15 @@ export function AssetSelection() {
         description: data.description,
       });
 
+      console.log("Created portfolio:", portfolio);
+
+      if (!portfolio || !portfolio.id) {
+        throw new Error("Portfolio creation failed - no ID returned");
+      }
+
       // Then add each selected asset to the portfolio
       for (const selectedAsset of data.assets) {
+        console.log(`Adding asset ${selectedAsset.asset.id} to portfolio ${portfolio.id}`);
         await apiRequest("POST", `/api/portfolios/${portfolio.id}/assets`, {
           assetId: selectedAsset.asset.id,
           quantity: selectedAsset.quantity,
