@@ -193,7 +193,7 @@ export function AssetSelection() {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="">Todos</SelectItem>
                     <SelectItem value="CRI">CRI</SelectItem>
                     <SelectItem value="CRA">CRA</SelectItem>
                     <SelectItem value="DEB">Debêntures</SelectItem>
@@ -211,7 +211,7 @@ export function AssetSelection() {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="">Todos</SelectItem>
                     <SelectItem value="CDI">CDI</SelectItem>
                     <SelectItem value="IPCA">IPCA</SelectItem>
                     <SelectItem value="SELIC">SELIC</SelectItem>
