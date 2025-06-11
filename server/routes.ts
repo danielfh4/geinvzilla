@@ -514,9 +514,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const puValue = row['PU'] || row['pu'] || row['Preço Unitário'] || row['precoUnitario'] || '1000';
               if (typeof puValue === 'string') {
                 // Replace comma with dot for decimal parsing
-                return parseFloat(puValue.replace(',', '.')) || 1000;
+                const numericValue = parseFloat(puValue.replace(',', '.')) || 1;
+                // If value is less than 100, multiply by 1000 to convert to Brazilian Real format
+                return numericValue < 100 ? numericValue * 1000 : numericValue;
               }
-              return parseFloat(puValue) || 1000;
+              const numericValue = parseFloat(puValue) || 1;
+              return numericValue < 100 ? numericValue * 1000 : numericValue;
             })()),
           };
 
