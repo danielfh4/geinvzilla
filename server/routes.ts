@@ -39,6 +39,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return next();
     }
     
+    // Check Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = Buffer.from(token, 'base64').toString();
+        const [userId] = decoded.split(':');
+        if (userId && !isNaN(parseInt(userId))) {
+          req.session.userId = parseInt(userId);
+          return next();
+        }
+      } catch (e) {
+        // Invalid token, continue to check cookie
+      }
+    }
+    
     // Check auth token cookie as fallback
     const authToken = req.cookies?.auth_token;
     if (authToken) {
