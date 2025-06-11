@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
 import type { User } from "@shared/schema";
 
@@ -14,32 +14,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: user, isLoading } = useQuery({
-    queryKey: ["/api/auth/me"],
-    queryFn: async () => {
+  useEffect(() => {
+    // Check for stored user data on mount
+    const storedUser = localStorage.getItem('auth_user');
+    if (storedUser) {
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
-        });
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            return null;
-          }
-          throw new Error("Failed to get user");
-        }
-        
-        const data = await response.json();
-        return data.user;
-      } catch (error) {
-        return null;
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+      } catch (e) {
+        localStorage.removeItem('auth_user');
       }
-    },
-    retry: false,
-    staleTime: Infinity,
-  });
+    }
+    setIsLoading(false);
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: async ({ username, password }: { username: string; password: string }) => {
@@ -59,8 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(["/api/auth/me"], data.user);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setUser(data.user);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+      }
     },
     onError: (error) => {
       console.error("Login error:", error);
@@ -73,16 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
-      queryClient.setQueryData(["/api/auth/me"], null);
+      setUser(null);
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
       queryClient.clear();
     },
   });
-
-  useEffect(() => {
-    if (!isLoading) {
-      setIsInitialized(true);
-    }
-  }, [isLoading]);
 
   const login = async (username: string, password: string) => {
     await loginMutation.mutateAsync({ username, password });
@@ -93,8 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const contextValue: AuthContextType = {
-    user: user || null,
-    isLoading: isLoading || !isInitialized,
+    user,
+    isLoading,
     login,
     logout,
   };
