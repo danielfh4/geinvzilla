@@ -232,11 +232,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEconomicParameter(name: string, value: number): Promise<EconomicParameter> {
-    const result = await db.insert(economicParameters)
-      .values({ name, value, updatedAt: new Date() })
+    const result = await (db.insert(economicParameters) as any)
+      .values({ name, value: String(value), updatedAt: new Date() })
       .onConflictDoUpdate({
         target: economicParameters.name,
-        set: { value, updatedAt: new Date() }
+        set: { value: String(value), updatedAt: new Date() }
       })
       .returning();
     return result[0];
@@ -248,13 +248,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUploads(userId?: number): Promise<Upload[]> {
-    let query = db.select().from(uploads);
-    
     if (userId) {
-      query = query.where(eq(uploads.uploadedBy, userId));
+      return await db.select().from(uploads).where(eq(uploads.uploadedBy, userId)).orderBy(desc(uploads.createdAt));
     }
     
-    return await query.orderBy(desc(uploads.createdAt));
+    return await db.select().from(uploads).orderBy(desc(uploads.createdAt));
   }
 
   async updateUploadStatus(id: number, status: string, recordsImported?: number, errorMessage?: string): Promise<Upload | undefined> {
