@@ -86,7 +86,8 @@ export function AssetSelection() {
 
   const handleAssetSelect = (asset: Asset, selected: boolean) => {
     if (selected) {
-      setSelectedAssets([...selectedAssets, { asset, quantity: 1, value: parseFloat(asset.minValue) }]);
+      const unitPrice = parseFloat((asset as any).unitPrice || asset.minValue || 1000);
+      setSelectedAssets([...selectedAssets, { asset, quantity: 1, value: unitPrice }]);
     } else {
       setSelectedAssets(selectedAssets.filter(sa => sa.asset.id !== asset.id));
     }
@@ -95,7 +96,7 @@ export function AssetSelection() {
   const updateAssetQuantity = (assetId: number, quantity: number) => {
     setSelectedAssets(selectedAssets.map(sa => 
       sa.asset.id === assetId 
-        ? { ...sa, quantity, value: quantity * parseFloat(sa.asset.minValue) }
+        ? { ...sa, quantity, value: quantity * parseFloat((sa.asset as any).unitPrice || sa.asset.minValue || 1000) }
         : sa
     ));
   };
