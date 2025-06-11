@@ -74,11 +74,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   const requireAdmin = async (req: any, res: any, next: any) => {
-    if (!req.session?.userId) {
+    // Use the same auth logic as requireAuth
+    let userId = req.session?.userId;
+    
+    if (!userId) {
+      // Check Authorization header
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          const decoded = Buffer.from(token, 'base64').toString();
+          const [userIdStr] = decoded.split(':');
+          if (userIdStr && !isNaN(parseInt(userIdStr))) {
+            userId = parseInt(userIdStr);
+            req.session.userId = userId;
+          }
+        } catch (e) {
+          // Invalid token
+        }
+      }
+      
+      // Check auth token cookie as fallback
+      if (!userId) {
+        const authToken = req.cookies?.auth_token;
+        if (authToken) {
+          try {
+            const decoded = Buffer.from(authToken, 'base64').toString();
+            const [userIdStr] = decoded.split(':');
+            if (userIdStr && !isNaN(parseInt(userIdStr))) {
+              userId = parseInt(userIdStr);
+              req.session.userId = userId;
+            }
+          } catch (e) {
+            // Invalid token
+          }
+        }
+      }
+    }
+    
+    if (!userId) {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    const user = await storage.getUser(req.session.userId);
+    const user = await storage.getUser(userId);
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ message: "Admin access required" });
     }
@@ -402,18 +440,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of data as any[]) {
         try {
           // Map Excel columns to asset fields
+          const convertExcelDate = (excelDate: any) => {
+            if (typeof excelDate === 'number') {
+              const date = new Date((excelDate - 25569) * 86400 * 1000);
+              return date.toISOString().split('T')[0];
+            }
+            return String(excelDate || '');
+          };
+
           const asset = {
-            name: String(row['Nome'] || row['NOME'] || ''),
-            code: String(row['Codigo'] || row['CODIGO'] || row['Code'] || ''),
-            type: String(row['Tipo'] || row['TIPO'] || row['Type'] || 'CDB'),
-            issuer: String(row['Emissor'] || row['EMISSOR'] || row['Issuer'] || ''),
-            sector: String(row['Setor'] || row['SETOR'] || row['Sector'] || ''),
-            rate: String(row['Taxa'] || row['TAXA'] || row['Rate'] || ''),
-            indexer: String(row['Indexador'] || row['INDEXADOR'] || row['Indexer'] || 'CDI'),
-            maturityDate: String(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || ''),
-            minValue: String(parseFloat(row['Valor Minimo'] || row['VALOR_MINIMO'] || row['MinValue'] || '1000')),
-            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || 'monthly'),
-            remPercentage: String(parseFloat(row['REM%'] || row['REM_PERCENT'] || row['RemPercentage'] || '0')),
+            name: String(row['Nome'] || row['NOME'] || row['name'] || ''),
+            code: String(row['ATIVO'] || row['Codigo'] || row['CODIGO'] || row['Code'] || row['code'] || ''),
+            type: String(row['Tipo'] || row['TIPO'] || row['Type'] || row['type'] || 'CDB'),
+            issuer: String(row['Emissor'] || row['EMISSOR'] || row['Issuer'] || row['issuer'] || ''),
+            sector: String(row['Setor'] || row['SETOR'] || row['Sector'] || row['sector'] || ''),
+            rate: String(row['Taxa'] || row['TAXA'] || row['Rate'] || row['rate'] || ''),
+            indexer: String(row['Indexador'] || row['INDEXADOR'] || row['Indexer'] || row['indexer'] || 'CDI'),
+            maturityDate: convertExcelDate(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || row['maturity']),
+            minValue: String(parseFloat(row['Valor Minimo'] || row['VALOR_MINIMO'] || row['MinValue'] || row['minValue'] || '1000')),
+            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || 'monthly'),
+            remPercentage: String(parseFloat(row['REM%'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0')),
           };
 
           console.log("Processed asset:", asset);
