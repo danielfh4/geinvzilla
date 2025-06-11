@@ -500,10 +500,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             maturityDate: convertExcelDate(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || row['maturity']),
             minValue: "1", // Minimum is always 1 unit
             frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || row['FREQ CUPOM'] || row['freq_cupom'] || 'Semestral'),
-            remPercentage: String(row['REM%'] || row['REM %'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0'),
+            remPercentage: String((() => {
+              const remValue = row['REM%'] || row['REM %'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0';
+              if (typeof remValue === 'string' && remValue.includes('%')) {
+                // Remove % and replace comma with dot, then parse
+                return parseFloat(remValue.replace('%', '').replace(',', '.'));
+              }
+              return parseFloat(remValue) || 0;
+            })()),
             rating: String(row['Rating'] || row['RATING'] || row['rating'] || ''),
             couponMonths: String(row['Cupom'] || row['CUPOM'] || row['coupon'] || row['CUPOM MESES'] || ''),
-            unitPrice: String(row['PU'] || row['pu'] || row['Preço Unitário'] || row['precoUnitario'] || '1000'),
+            unitPrice: String((() => {
+              const puValue = row['PU'] || row['pu'] || row['Preço Unitário'] || row['precoUnitario'] || '1000';
+              if (typeof puValue === 'string') {
+                // Replace comma with dot for decimal parsing
+                return parseFloat(puValue.replace(',', '.')) || 1000;
+              }
+              return parseFloat(puValue) || 1000;
+            })()),
           };
 
           console.log("Processed asset:", asset);
