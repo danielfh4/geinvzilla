@@ -66,8 +66,8 @@ export function AssetSelection() {
         console.log(`Adding asset ${selectedAsset.asset.id} to portfolio ${portfolio.id}`);
         await apiRequest("POST", `/api/portfolios/${portfolio.id}/assets`, {
           assetId: selectedAsset.asset.id,
-          quantity: selectedAsset.quantity,
-          targetValue: selectedAsset.value,
+          quantity: selectedAsset.quantity.toString(),
+          value: selectedAsset.value.toString(),
         });
       }
 
