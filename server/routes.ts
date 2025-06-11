@@ -449,17 +449,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           const asset = {
-            name: String(row['Nome'] || row['NOME'] || row['name'] || ''),
+            name: String(row['Nome'] || row['NOME'] || row['name'] || row['DEVEDOR'] || row['devedor'] || ''),
             code: String(row['ATIVO'] || row['Codigo'] || row['CODIGO'] || row['Code'] || row['code'] || ''),
-            type: String(row['Tipo'] || row['TIPO'] || row['Type'] || row['type'] || 'CDB'),
-            issuer: String(row['Emissor'] || row['EMISSOR'] || row['Issuer'] || row['issuer'] || ''),
+            type: String(row['Tipo'] || row['TIPO'] || row['Type'] || row['type'] || 'DEB'),
+            issuer: String(row['Emissor'] || row['EMISSOR'] || row['Issuer'] || row['issuer'] || row['DEVEDOR'] || row['devedor'] || ''),
             sector: String(row['Setor'] || row['SETOR'] || row['Sector'] || row['sector'] || ''),
             rate: String(row['Taxa'] || row['TAXA'] || row['Rate'] || row['rate'] || ''),
             indexer: String(row['Indexador'] || row['INDEXADOR'] || row['Indexer'] || row['indexer'] || 'CDI'),
             maturityDate: convertExcelDate(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || row['maturity']),
             minValue: String(parseFloat(row['Valor Minimo'] || row['VALOR_MINIMO'] || row['MinValue'] || row['minValue'] || '1000')),
-            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || 'monthly'),
-            remPercentage: String(parseFloat(row['REM%'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0')),
+            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || row['FREQ CUPOM'] || row['freq_cupom'] || 'monthly'),
+            remPercentage: String(parseFloat(row['REM%'] || row['REM %'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0')),
           };
 
           console.log("Processed asset:", asset);
