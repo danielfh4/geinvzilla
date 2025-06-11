@@ -24,8 +24,8 @@ export function AssetSelection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({
-    type: "",
-    indexer: "",
+    type: "all",
+    indexer: "all",
     minRate: "",
     minValue: "",
     issuer: "",
@@ -38,7 +38,7 @@ export function AssetSelection() {
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+        if (value && value !== "all") params.append(key, value);
       });
       
       const response = await fetch(`/api/assets?${params}`);
@@ -193,7 +193,7 @@ export function AssetSelection() {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="CRI">CRI</SelectItem>
                     <SelectItem value="CRA">CRA</SelectItem>
                     <SelectItem value="DEB">Debêntures</SelectItem>
@@ -211,7 +211,7 @@ export function AssetSelection() {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="CDI">CDI</SelectItem>
                     <SelectItem value="IPCA">IPCA</SelectItem>
                     <SelectItem value="SELIC">SELIC</SelectItem>
