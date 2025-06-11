@@ -24,6 +24,9 @@ export const assets = pgTable("assets", {
   minValue: decimal("min_value", { precision: 15, scale: 2 }).notNull(),
   frequency: text("frequency"), // monthly, quarterly, semiannual, annual
   remPercentage: decimal("rem_percentage", { precision: 5, scale: 4 }), // commission percentage
+  rating: text("rating"), // Asset rating (AAA, AA+, etc.)
+  couponMonths: text("coupon_months"), // Months when coupons are paid
+  unitPrice: decimal("unit_price", { precision: 15, scale: 2 }), // PU - Unit price
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

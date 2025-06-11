@@ -308,6 +308,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/portfolios/:id/assets", requireAuth, async (req, res) => {
     try {
       const portfolioId = parseInt(req.params.id);
+      
+      if (isNaN(portfolioId) || portfolioId <= 0) {
+        return res.status(400).json({ message: "Invalid portfolio ID" });
+      }
+      
       const portfolio = await storage.getPortfolioById(portfolioId);
       
       if (!portfolio) {
@@ -460,18 +465,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return String(excelDate || '');
           };
 
+          // Auto-detect asset type based on code pattern
+          const assetCode = String(row['ATIVO'] || row['Codigo'] || row['CODIGO'] || row['Code'] || row['code'] || '');
+          let assetType = String(row['Tipo'] || row['TIPO'] || row['Type'] || row['type'] || '');
+          
+          if (!assetType) {
+            if (/^CRA\d+/.test(assetCode)) {
+              assetType = 'CRA';
+            } else if (/^CRI\d+/.test(assetCode) || /^\d{2}[A-Z]\d+/.test(assetCode)) {
+              assetType = 'CRI';
+            } else if (/^[A-Z]{4}\d{2}$/.test(assetCode)) {
+              assetType = 'DEB';
+            } else if (assetCode.includes('CDB')) {
+              assetType = 'CDB';
+            } else if (assetCode.includes('LCA')) {
+              assetType = 'LCA';
+            } else if (assetCode.includes('LCI')) {
+              assetType = 'LCI';
+            } else if (assetCode.includes('TESOURO')) {
+              assetType = 'Tesouro';
+            } else {
+              assetType = 'DEB'; // Default fallback
+            }
+          }
+
           const asset = {
             name: String(row['Nome'] || row['NOME'] || row['name'] || row['DEVEDOR'] || row['devedor'] || ''),
-            code: String(row['ATIVO'] || row['Codigo'] || row['CODIGO'] || row['Code'] || row['code'] || ''),
-            type: String(row['Tipo'] || row['TIPO'] || row['Type'] || row['type'] || 'DEB'),
+            code: assetCode,
+            type: assetType,
             issuer: String(row['Emissor'] || row['EMISSOR'] || row['Issuer'] || row['issuer'] || row['DEVEDOR'] || row['devedor'] || ''),
             sector: String(row['Setor'] || row['SETOR'] || row['Sector'] || row['sector'] || ''),
             rate: String(row['Taxa'] || row['TAXA'] || row['Rate'] || row['rate'] || ''),
             indexer: String(row['Indexador'] || row['INDEXADOR'] || row['Indexer'] || row['indexer'] || 'CDI'),
             maturityDate: convertExcelDate(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || row['maturity']),
-            minValue: String(parseFloat(row['Valor Minimo'] || row['VALOR_MINIMO'] || row['MinValue'] || row['minValue'] || '1000')),
-            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || row['FREQ CUPOM'] || row['freq_cupom'] || 'monthly'),
+            minValue: "1", // Minimum is always 1 unit
+            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || row['FREQ CUPOM'] || row['freq_cupom'] || 'Semestral'),
             remPercentage: String(parseFloat(row['REM%'] || row['REM %'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0')),
+            rating: String(row['Rating'] || row['RATING'] || row['rating'] || ''),
+            couponMonths: String(row['Cupom'] || row['CUPOM'] || row['coupon'] || row['CUPOM MESES'] || ''),
+            unitPrice: String(parseFloat(row['PU'] || row['pu'] || row['Preço Unitário'] || row['precoUnitario'] || '1000').toFixed(2)),
           };
 
           console.log("Processed asset:", asset);

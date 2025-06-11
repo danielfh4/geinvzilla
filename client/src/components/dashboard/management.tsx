@@ -366,8 +366,10 @@ export function Management() {
                     <TableHead>Taxa</TableHead>
                     <TableHead>Indexador</TableHead>
                     <TableHead>Vencimento</TableHead>
-                    <TableHead>Valor Mín.</TableHead>
+                    <TableHead>PU (R$)</TableHead>
+                    <TableHead>Rating</TableHead>
                     <TableHead>Frequência</TableHead>
+                    <TableHead>Cupom</TableHead>
                     <TableHead>REM %</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -388,8 +390,14 @@ export function Management() {
                       <TableCell>{asset.rate}</TableCell>
                       <TableCell>{asset.indexer}</TableCell>
                       <TableCell>{asset.maturityDate}</TableCell>
-                      <TableCell>R$ {parseFloat(asset.minValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>R$ {parseFloat(asset.unitPrice || asset.minValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>
+                        <Badge variant={asset.rating ? "default" : "secondary"}>
+                          {asset.rating || "N/A"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{asset.frequency}</TableCell>
+                      <TableCell>{asset.couponMonths || "N/A"}</TableCell>
                       <TableCell>{parseFloat(asset.remPercentage || 0).toFixed(4)}%</TableCell>
                       <TableCell>
                         <Badge className={asset.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
