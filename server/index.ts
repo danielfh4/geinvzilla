@@ -1,28 +1,23 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
-// Session configuration with memory store
-const MemoryStoreSession = MemoryStore(session);
+// Simple session configuration that works with Vite dev server
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'portfolio-management-secret-key-2025',
-  resave: true,
-  saveUninitialized: true,
-  store: new MemoryStoreSession({
-    checkPeriod: 86400000 // prune expired entries every 24h
-  }),
-  name: 'sessionId',
+  secret: 'simple-session-secret',
+  resave: false,
+  saveUninitialized: false,
   cookie: {
     secure: false,
-    httpOnly: false, // Allow frontend access for debugging
+    httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24, // 24 hours
-    sameSite: 'lax'
   }
 }));
 

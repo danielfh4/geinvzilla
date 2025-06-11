@@ -34,10 +34,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Authentication middleware
   const requireAuth = (req: any, res: any, next: any) => {
-    if (!req.session?.userId) {
-      return res.status(401).json({ message: "Authentication required" });
+    // Check session first
+    if (req.session?.userId) {
+      return next();
     }
-    next();
+    
+    // Check auth token cookie as fallback
+    const authToken = req.cookies?.auth_token;
+    if (authToken) {
+      try {
+        const decoded = Buffer.from(authToken, 'base64').toString();
+        const [userId] = decoded.split(':');
+        if (userId && !isNaN(parseInt(userId))) {
+          req.session.userId = parseInt(userId);
+          return next();
+        }
+      } catch (e) {
+        // Invalid token, continue to reject
+      }
+    }
+    
+    return res.status(401).json({ message: "Authentication required" });
   };
 
   const requireAdmin = async (req: any, res: any, next: any) => {
@@ -74,10 +91,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      console.log("Setting session userId:", user.id, "Session after:", req.session);
+      
+      // Also set a simple token for frontend compatibility
+      const token = Buffer.from(`${user.id}:${user.username}:${Date.now()}`).toString('base64');
+      res.cookie('auth_token', token, {
+        httpOnly: false,
+        secure: false,
+        maxAge: 1000 * 60 * 60 * 24,
+        sameSite: 'lax'
+      });
       
       const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      res.json({ user: userWithoutPassword, token });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Internal server error" });
