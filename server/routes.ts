@@ -465,9 +465,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return String(excelDate || '');
           };
 
+          // Helper function to find column value with flexible matching
+          const findColumnValue = (possibleNames: string[]) => {
+            for (const name of possibleNames) {
+              if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+                return row[name];
+              }
+            }
+            return '';
+          };
+
           // Auto-detect asset type based on code pattern
-          const assetCode = String(row['ATIVO'] || row['Codigo'] || row['CODIGO'] || row['Code'] || row['code'] || '');
-          let assetType = String(row['Tipo'] || row['TIPO'] || row['Type'] || row['type'] || '');
+          const assetCode = String(findColumnValue([
+            'ATIVO', 'Ativo', 'ativo', 'CODIGO', 'Codigo', 'codigo', 'Code', 'code', 
+            'PAPEL', 'Papel', 'papel', 'TICKER', 'Ticker', 'ticker'
+          ]));
+          let assetType = String(findColumnValue([
+            'TIPO', 'Tipo', 'tipo', 'Type', 'type', 'CATEGORIA', 'Categoria', 'categoria'
+          ]));
           
           if (!assetType) {
             if (/^CRA\d+/.test(assetCode)) {
@@ -490,32 +505,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const asset = {
-            name: String(row['Nome'] || row['NOME'] || row['name'] || row['DEVEDOR'] || row['devedor'] || ''),
+            name: String(findColumnValue([
+              'NOME', 'Nome', 'nome', 'NAME', 'Name', 'name', 'DEVEDOR', 'Devedor', 'devedor',
+              'RAZAO SOCIAL', 'Razao Social', 'razao_social', 'EMPRESA', 'Empresa', 'empresa'
+            ])),
             code: assetCode,
             type: assetType,
-            issuer: String(row['Emissor'] || row['EMISSOR'] || row['Issuer'] || row['issuer'] || row['DEVEDOR'] || row['devedor'] || ''),
-            sector: String(row['Setor'] || row['SETOR'] || row['Sector'] || row['sector'] || ''),
-            rate: String(row['Taxa'] || row['TAXA'] || row['Rate'] || row['rate'] || ''),
-            indexer: String(row['Indexador'] || row['INDEXADOR'] || row['Indexer'] || row['indexer'] || 'CDI'),
-            maturityDate: convertExcelDate(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || row['maturity']),
+            issuer: String(findColumnValue([
+              'EMISSOR', 'Emissor', 'emissor', 'ISSUER', 'Issuer', 'issuer', 'DEVEDOR', 'Devedor', 'devedor',
+              'EMITENTE', 'Emitente', 'emitente'
+            ])),
+            sector: String(findColumnValue([
+              'SETOR', 'Setor', 'setor', 'SECTOR', 'Sector', 'sector', 'SEGMENTO', 'Segmento', 'segmento'
+            ])),
+            rate: String(findColumnValue([
+              'TAXA', 'Taxa', 'taxa', 'RATE', 'Rate', 'rate', 'RENTABILIDADE', 'Rentabilidade', 'rentabilidade',
+              'YIELD', 'Yield', 'yield'
+            ])),
+            indexer: String(findColumnValue([
+              'INDEXADOR', 'Indexador', 'indexador', 'INDEXER', 'Indexer', 'indexer', 'INDICE', 'Indice', 'indice',
+              'INDEX', 'Index', 'index'
+            ]) || 'CDI'),
+            maturityDate: convertExcelDate(findColumnValue([
+              'VENCIMENTO', 'Vencimento', 'vencimento', 'MATURITY', 'Maturity', 'maturity',
+              'DATA VENCIMENTO', 'Data Vencimento', 'data_vencimento'
+            ])),
             minValue: "1", // Minimum is always 1 unit
-            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || row['FREQ CUPOM'] || row['freq_cupom'] || 'Semestral'),
+            frequency: String(findColumnValue([
+              'FREQUENCIA', 'Frequencia', 'frequencia', 'FREQUENCY', 'Frequency', 'frequency',
+              'FREQ CUPOM', 'Freq Cupom', 'freq_cupom', 'PERIODICIDADE', 'Periodicidade', 'periodicidade'
+            ]) || 'Semestral'),
             remPercentage: String((() => {
-              const remValue = row['REM%'] || row['REM %'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0';
+              const remValue = findColumnValue([
+                'REM%', 'REM %', 'rem%', 'rem %', 'REM_PERCENT', 'RemPercentage', 'remPercentage',
+                'REMUNERACAO', 'Remuneracao', 'remuneracao', 'COMISSAO', 'Comissao', 'comissao'
+              ]) || '0';
               if (typeof remValue === 'string' && remValue.includes('%')) {
-                // Remove % and replace comma with dot, then parse
                 return parseFloat(remValue.replace('%', '').replace(',', '.'));
               }
               return parseFloat(remValue) || 0;
             })()),
-            rating: String(row['Rating'] || row['RATING'] || row['rating'] || ''),
-            couponMonths: String(row['Cupom'] || row['CUPOM'] || row['coupon'] || row['CUPOM MESES'] || ''),
+            rating: String(findColumnValue([
+              'RATING', 'Rating', 'rating', 'CLASSIFICACAO', 'Classificacao', 'classificacao'
+            ])),
+            couponMonths: String(findColumnValue([
+              'CUPOM', 'Cupom', 'cupom', 'COUPON', 'Coupon', 'coupon', 'CUPOM MESES', 'Cupom Meses', 'cupom_meses',
+              'MESES CUPOM', 'Meses Cupom', 'meses_cupom'
+            ])),
             unitPrice: String((() => {
-              const puValue = row['PU'] || row['pu'] || row['Preço Unitário'] || row['precoUnitario'] || '1000';
+              const puValue = findColumnValue([
+                'PU', 'pu', 'Pu', 'PRECO UNITARIO', 'Preco Unitario', 'preco_unitario',
+                'UNIT PRICE', 'Unit Price', 'unit_price', 'VALOR UNITARIO', 'Valor Unitario', 'valor_unitario'
+              ]) || '1000';
               if (typeof puValue === 'string') {
-                // Replace comma with dot for decimal parsing
                 const numericValue = parseFloat(puValue.replace(',', '.')) || 1;
-                // If value is less than 100, multiply by 1000 to convert to Brazilian Real format
                 return numericValue < 100 ? numericValue * 1000 : numericValue;
               }
               const numericValue = parseFloat(puValue) || 1;
