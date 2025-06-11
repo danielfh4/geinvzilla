@@ -74,15 +74,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      req.session.save((err: any) => {
-        if (err) {
-          console.error("Session save error:", err);
-          return res.status(500).json({ message: "Session error" });
-        }
-        
-        const { password: _, ...userWithoutPassword } = user;
-        res.json({ user: userWithoutPassword });
-      });
+      console.log("Setting session userId:", user.id, "Session after:", req.session);
+      
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Internal server error" });
