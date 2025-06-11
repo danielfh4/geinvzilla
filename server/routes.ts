@@ -31,13 +31,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Session middleware for authentication
-  app.use((req: any, res: any, next: any) => {
-    if (!req.session) {
-      req.session = {} as any;
-    }
-    next();
-  });
 
   // Authentication middleware
   const requireAuth = (req: any, res: any, next: any) => {
@@ -81,9 +74,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Session error" });
+        }
+        
+        const { password: _, ...userWithoutPassword } = user;
+        res.json({ user: userWithoutPassword });
+      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -101,6 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", async (req, res) => {
     try {
+      console.log("Session check:", req.session);
       if (!req.session?.userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
