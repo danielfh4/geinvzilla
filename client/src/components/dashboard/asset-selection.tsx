@@ -122,10 +122,10 @@ export function AssetSelection() {
 
   const getIndexerColor = (indexer: string) => {
     const colors = {
-      CDI: "bg-yellow-100 text-yellow-800",
-      IPCA: "bg-red-100 text-red-800",
-      SELIC: "bg-indigo-100 text-indigo-800",
-      PREFIXADO: "bg-pink-100 text-pink-800",
+      "%CDI": "bg-yellow-100 text-yellow-800",
+      "CDI+": "bg-amber-100 text-amber-800",
+      "IPCA": "bg-red-100 text-red-800",
+      "PREFIXADA": "bg-pink-100 text-pink-800",
     };
     return colors[indexer as keyof typeof colors] || "bg-gray-100 text-gray-800";
   };
@@ -222,10 +222,10 @@ export function AssetSelection() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="CDI">CDI</SelectItem>
+                    <SelectItem value="%CDI">%CDI</SelectItem>
+                    <SelectItem value="CDI+">CDI+</SelectItem>
                     <SelectItem value="IPCA">IPCA</SelectItem>
-                    <SelectItem value="SELIC">SELIC</SelectItem>
-                    <SelectItem value="PREFIXADO">PREFIXADO</SelectItem>
+                    <SelectItem value="PREFIXADA">PREFIXADA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
