@@ -48,8 +48,23 @@ export function AssetSelection() {
   });
 
   const createPortfolioMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string }) => {
-      return apiRequest("POST", "/api/portfolios", data);
+    mutationFn: async (data: { name: string; description: string; assets: SelectedAsset[] }) => {
+      // First create the portfolio
+      const portfolio: any = await apiRequest("POST", "/api/portfolios", {
+        name: data.name,
+        description: data.description,
+      });
+
+      // Then add each selected asset to the portfolio
+      for (const selectedAsset of data.assets) {
+        await apiRequest("POST", `/api/portfolios/${portfolio.id}/assets`, {
+          assetId: selectedAsset.asset.id,
+          quantity: selectedAsset.quantity,
+          targetValue: selectedAsset.value,
+        });
+      }
+
+      return portfolio;
     },
     onSuccess: () => {
       toast({
@@ -60,10 +75,10 @@ export function AssetSelection() {
       setSelectedAssets([]);
       setPortfolioName("");
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Erro",
-        description: "Erro ao criar carteira. Tente novamente.",
+        description: error.message || "Erro ao criar carteira. Tente novamente.",
         variant: "destructive",
       });
     },
@@ -119,6 +134,7 @@ export function AssetSelection() {
     createPortfolioMutation.mutate({
       name: portfolioName,
       description: `Carteira com ${selectedAssets.length} ativos`,
+      assets: selectedAssets,
     });
   };
 
