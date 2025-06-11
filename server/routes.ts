@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertAssetSchema, insertPortfolioSchema, insertPortfolioAssetSchema } from "@shared/schema";
@@ -7,6 +7,11 @@ import multer from "multer";
 import XLSX from "xlsx";
 import path from "path";
 import fs from "fs";
+
+interface AuthenticatedRequest extends Request {
+  session: any;
+  user?: any;
+}
 
 // Configure multer for file uploads
 const upload = multer({
@@ -27,7 +32,7 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session middleware for authentication
-  app.use((req, res, next) => {
+  app.use((req: any, res: any, next: any) => {
     if (!req.session) {
       req.session = {} as any;
     }
@@ -57,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Auth routes
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", async (req: any, res: any) => {
     try {
       const { username, password } = req.body;
       
@@ -85,8 +90,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (req, res) => {
-    req.session.destroy((err) => {
+  app.post("/api/auth/logout", (req: any, res: any) => {
+    req.session.destroy((err: any) => {
       if (err) {
         return res.status(500).json({ message: "Failed to logout" });
       }

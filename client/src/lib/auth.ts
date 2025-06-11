@@ -83,17 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await logoutMutation.mutateAsync();
   };
 
-  const value: AuthContextType = {
+  const contextValue: AuthContextType = {
     user: user || null,
     isLoading: isLoading || !isInitialized,
     login,
     logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+  return React.createElement(
+    AuthContext.Provider,
+    { value: contextValue },
+    children
   );
 }
 

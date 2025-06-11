@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChartLine, Gauge, Coins, Briefcase, BarChart3, FileText, Settings, ShieldX, User, LogOut } from "lucide-react";
+import { ChartLine, Gauge, Coins, Briefcase, BarChart3, FileText, Settings, ShieldX, User as UserIcon, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
@@ -116,7 +116,7 @@ export function Sidebar({ user, activeSection, onSectionChange }: SidebarProps) 
             {user.role === "admin" ? (
               <ShieldX className="mr-1 h-3 w-3" />
             ) : (
-              <User className="mr-1 h-3 w-3" />
+              <UserIcon className="mr-1 h-3 w-3" />
             )}
             {user.role.toUpperCase()}
           </Badge>
