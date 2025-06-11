@@ -93,7 +93,7 @@ export function AssetSelection() {
 
   const handleAssetSelect = (asset: Asset, selected: boolean) => {
     if (selected) {
-      const unitPrice = parseFloat((asset as any).unitPrice || asset.minValue || 1000);
+      const unitPrice = parseFloat(asset.unitPrice || asset.minValue || "1000");
       setSelectedAssets([...selectedAssets, { asset, quantity: 1, value: unitPrice }]);
     } else {
       setSelectedAssets(selectedAssets.filter(sa => sa.asset.id !== asset.id));
@@ -103,7 +103,7 @@ export function AssetSelection() {
   const updateAssetQuantity = (assetId: number, quantity: number) => {
     setSelectedAssets(selectedAssets.map(sa => 
       sa.asset.id === assetId 
-        ? { ...sa, quantity, value: quantity * parseFloat((sa.asset as any).unitPrice || sa.asset.minValue || 1000) }
+        ? { ...sa, quantity, value: quantity * parseFloat(sa.asset.unitPrice || sa.asset.minValue || "1000") }
         : sa
     ));
   };
@@ -118,6 +118,16 @@ export function AssetSelection() {
       FUND: "bg-gray-100 text-gray-800",
     };
     return colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800";
+  };
+
+  const getIndexerColor = (indexer: string) => {
+    const colors = {
+      CDI: "bg-yellow-100 text-yellow-800",
+      IPCA: "bg-red-100 text-red-800",
+      SELIC: "bg-indigo-100 text-indigo-800",
+      PREFIXADO: "bg-pink-100 text-pink-800",
+    };
+    return colors[indexer as keyof typeof colors] || "bg-gray-100 text-gray-800";
   };
 
   const handleSavePortfolio = () => {
@@ -278,7 +288,10 @@ export function AssetSelection() {
                       <TableHead>Taxa</TableHead>
                       <TableHead>Indexador</TableHead>
                       <TableHead>Vencimento</TableHead>
-                      <TableHead>Valor Min.</TableHead>
+                      <TableHead>PU</TableHead>
+                      <TableHead>Frequência</TableHead>
+                      <TableHead>Cupom</TableHead>
+                      <TableHead>Rem%</TableHead>
                       <TableHead>Quantidade</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -308,9 +321,18 @@ export function AssetSelection() {
                           </TableCell>
                           <TableCell>{asset.issuer}</TableCell>
                           <TableCell>{asset.rate}</TableCell>
-                          <TableCell>{asset.indexer}</TableCell>
+                          <TableCell>
+                            <Badge className={getIndexerColor(asset.indexer)}>
+                              {asset.indexer}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{asset.maturityDate}</TableCell>
-                          <TableCell>R$ {parseFloat(asset.minValue).toLocaleString('pt-BR')}</TableCell>
+                          <TableCell>
+                            R$ {asset.unitPrice ? parseFloat(asset.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : parseFloat(asset.minValue).toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell>{asset.frequency || '-'}</TableCell>
+                          <TableCell>{asset.couponMonths || '-'}</TableCell>
+                          <TableCell>{asset.remPercentage ? `${parseFloat(asset.remPercentage).toFixed(2)}%` : '-'}</TableCell>
                           <TableCell>
                             {isSelected ? (
                               <Input
