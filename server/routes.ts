@@ -500,10 +500,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             maturityDate: convertExcelDate(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || row['maturity']),
             minValue: "1", // Minimum is always 1 unit
             frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || row['frequency'] || row['FREQ CUPOM'] || row['freq_cupom'] || 'Semestral'),
-            remPercentage: String(parseFloat(row['REM%'] || row['REM %'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0')),
+            remPercentage: String(row['REM%'] || row['REM %'] || row['REM_PERCENT'] || row['RemPercentage'] || row['remPercentage'] || '0'),
             rating: String(row['Rating'] || row['RATING'] || row['rating'] || ''),
             couponMonths: String(row['Cupom'] || row['CUPOM'] || row['coupon'] || row['CUPOM MESES'] || ''),
-            unitPrice: String(parseFloat(row['PU'] || row['pu'] || row['Preço Unitário'] || row['precoUnitario'] || '1000').toFixed(2)),
+            unitPrice: String(row['PU'] || row['pu'] || row['Preço Unitário'] || row['precoUnitario'] || '1000'),
           };
 
           console.log("Processed asset:", asset);
