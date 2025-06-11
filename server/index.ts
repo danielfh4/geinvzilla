@@ -12,14 +12,15 @@ app.use(express.urlencoded({ extended: false }));
 const MemoryStoreSession = MemoryStore(session);
 app.use(session({
   secret: process.env.SESSION_SECRET || 'portfolio-management-secret-key-2025',
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   store: new MemoryStoreSession({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
+  name: 'sessionId',
   cookie: {
     secure: false,
-    httpOnly: true,
+    httpOnly: false, // Allow frontend access for debugging
     maxAge: 1000 * 60 * 60 * 24, // 24 hours
     sameSite: 'lax'
   }
