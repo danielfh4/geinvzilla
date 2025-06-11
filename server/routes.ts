@@ -383,10 +383,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Background processing functions
   async function processExcelFile(filePath: string, uploadId: number) {
     try {
+      console.log(`Processing Excel file: ${filePath}`);
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
+      console.log(`Sheet name: ${sheetName}`);
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet);
+      console.log(`Data rows found: ${data.length}`);
+      
+      if (data.length > 0) {
+        console.log("First row sample:", JSON.stringify(data[0], null, 2));
+        console.log("Available columns:", Object.keys(data[0] as any));
+      }
 
       const assets = [];
       let importedCount = 0;
@@ -408,20 +416,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             remPercentage: String(parseFloat(row['REM%'] || row['REM_PERCENT'] || row['RemPercentage'] || '0')),
           };
 
+          console.log("Processed asset:", asset);
           if (asset.name && asset.code) {
             assets.push(asset);
             importedCount++;
+            console.log(`Asset added: ${asset.name} (${asset.code})`);
+          } else {
+            console.log("Asset skipped - missing name or code:", { name: asset.name, code: asset.code });
           }
         } catch (error) {
           console.error("Error processing row:", error);
         }
       }
 
+      console.log(`Processing complete. Assets to import: ${assets.length}`);
       if (assets.length > 0) {
+        console.log("Saving assets to database...");
         await storage.bulkCreateAssets(assets as any);
+        console.log("Assets saved successfully");
+      } else {
+        console.log("No valid assets found to import");
       }
 
       await storage.updateUploadStatus(uploadId, "completed", importedCount);
+      console.log(`Upload ${uploadId} completed with ${importedCount} assets imported`);
       
       // Clean up uploaded file
       fs.unlinkSync(filePath);

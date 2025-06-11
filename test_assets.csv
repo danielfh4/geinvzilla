@@ -1,0 +1,6 @@
+Nome,Codigo,Tipo,Emissor,Setor,Taxa,Indexador,Vencimento,Valor Minimo,Frequencia,REM%
+CDB Bradesco,BRAD001,CDB,Bradesco,Banking,CDI + 1.8%,CDI,2025-12-31,5000,monthly,0.6
+LCA Santander,SANT002,LCA,Santander,Banking,CDI + 2.2%,CDI,2026-06-30,10000,monthly,0.8
+Debenture Petrobras,PETR003,DEB,Petrobras,Energy,IPCA + 5.5%,IPCA,2027-03-15,1000,quarterly,1.2
+CRA Agro Capital,AGRO004,CRA,Agro Capital,Agriculture,CDI + 3.0%,CDI,2025-09-30,25000,monthly,1.5
+CRI Urban,URBAN005,CRI,Urban Investimentos,Real Estate,IPCA + 4.2%,IPCA,2028-12-31,50000,monthly,2.0
