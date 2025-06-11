@@ -476,16 +476,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Processing complete. Assets to import: ${assets.length}`);
+      let actualImported = 0;
       if (assets.length > 0) {
         console.log("Saving assets to database...");
-        await storage.bulkCreateAssets(assets as any);
-        console.log("Assets saved successfully");
+        const createdAssets = await storage.bulkCreateAssets(assets as any);
+        actualImported = createdAssets.length;
+        console.log(`Successfully imported ${actualImported} new assets (${assets.length - actualImported} duplicates skipped)`);
       } else {
         console.log("No valid assets found to import");
       }
 
-      await storage.updateUploadStatus(uploadId, "completed", importedCount);
-      console.log(`Upload ${uploadId} completed with ${importedCount} assets imported`);
+      await storage.updateUploadStatus(uploadId, "completed", actualImported);
+      console.log(`Upload ${uploadId} completed with ${actualImported} assets imported`);
       
       // Clean up uploaded file
       fs.unlinkSync(filePath);

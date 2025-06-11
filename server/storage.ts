@@ -270,8 +270,26 @@ export class DatabaseStorage implements IStorage {
   async bulkCreateAssets(assetsList: InsertAsset[]): Promise<Asset[]> {
     if (assetsList.length === 0) return [];
     
-    const result = await db.insert(assets).values(assetsList).returning();
-    return result;
+    const createdAssets: Asset[] = [];
+    
+    // Insert assets one by one to handle duplicates gracefully
+    for (const asset of assetsList) {
+      try {
+        const result = await db.insert(assets).values(asset).returning();
+        if (result.length > 0) {
+          createdAssets.push(result[0]);
+        }
+      } catch (error: any) {
+        // Skip duplicates (constraint violation)
+        if (error.code === '23505') {
+          console.log(`Asset with code ${asset.code} already exists, skipping...`);
+          continue;
+        }
+        console.error(`Error inserting asset ${asset.code}:`, error);
+      }
+    }
+    
+    return createdAssets;
   }
 
   async bulkCreateEconomicParameters(parameters: InsertEconomicParameter[]): Promise<EconomicParameter[]> {
