@@ -359,17 +359,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Map Excel columns to asset fields
           const asset = {
-            name: row['Nome'] || row['NOME'] || '',
-            code: row['Codigo'] || row['CODIGO'] || row['Code'] || '',
-            type: row['Tipo'] || row['TIPO'] || row['Type'] || 'CDB',
-            issuer: row['Emissor'] || row['EMISSOR'] || row['Issuer'] || '',
-            sector: row['Setor'] || row['SETOR'] || row['Sector'] || '',
-            rate: row['Taxa'] || row['TAXA'] || row['Rate'] || '',
-            indexer: row['Indexador'] || row['INDEXADOR'] || row['Indexer'] || 'CDI',
-            maturityDate: row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || '',
-            minValue: parseFloat(row['Valor Minimo'] || row['VALOR_MINIMO'] || row['MinValue'] || '1000'),
-            frequency: row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || 'monthly',
-            remPercentage: parseFloat(row['REM%'] || row['REM_PERCENT'] || row['RemPercentage'] || '0'),
+            name: String(row['Nome'] || row['NOME'] || ''),
+            code: String(row['Codigo'] || row['CODIGO'] || row['Code'] || ''),
+            type: String(row['Tipo'] || row['TIPO'] || row['Type'] || 'CDB'),
+            issuer: String(row['Emissor'] || row['EMISSOR'] || row['Issuer'] || ''),
+            sector: String(row['Setor'] || row['SETOR'] || row['Sector'] || ''),
+            rate: String(row['Taxa'] || row['TAXA'] || row['Rate'] || ''),
+            indexer: String(row['Indexador'] || row['INDEXADOR'] || row['Indexer'] || 'CDI'),
+            maturityDate: String(row['Vencimento'] || row['VENCIMENTO'] || row['Maturity'] || ''),
+            minValue: String(parseFloat(row['Valor Minimo'] || row['VALOR_MINIMO'] || row['MinValue'] || '1000')),
+            frequency: String(row['Frequencia'] || row['FREQUENCIA'] || row['Frequency'] || 'monthly'),
+            remPercentage: String(parseFloat(row['REM%'] || row['REM_PERCENT'] || row['RemPercentage'] || '0')),
           };
 
           if (asset.name && asset.code) {
@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (assets.length > 0) {
-        await storage.bulkCreateAssets(assets);
+        await storage.bulkCreateAssets(assets as any);
       }
 
       await storage.updateUploadStatus(uploadId, "completed", importedCount);
@@ -391,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fs.unlinkSync(filePath);
     } catch (error) {
       console.error("Excel processing error:", error);
-      await storage.updateUploadStatus(uploadId, "failed", 0, error.message);
+      await storage.updateUploadStatus(uploadId, "failed", 0, (error as any).message);
       
       // Clean up uploaded file
       fs.unlinkSync(filePath);
@@ -408,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fs.unlinkSync(filePath);
     } catch (error) {
       console.error("PDF processing error:", error);
-      await storage.updateUploadStatus(uploadId, "failed", 0, error.message);
+      await storage.updateUploadStatus(uploadId, "failed", 0, (error as any).message);
       
       // Clean up uploaded file
       fs.unlinkSync(filePath);

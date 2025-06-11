@@ -150,10 +150,10 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      return await (db.select().from(assets) as any).where(and(...conditions)).orderBy(desc(assets.createdAt));
     }
     
-    return await query.orderBy(desc(assets.createdAt));
+    return await db.select().from(assets).orderBy(desc(assets.createdAt));
   }
 
   async getUserPortfolios(userId: number): Promise<Portfolio[]> {
