@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { insertUserSchema, insertAssetSchema, insertPortfolioSchema, insertPortfolioAssetSchema } from "@shared/schema";
+import { storage, db } from "./storage";
+import { insertUserSchema, insertAssetSchema, insertPortfolioSchema, insertPortfolioAssetSchema, assets, portfolios, portfolioAssets, uploads } from "@shared/schema";
 import bcrypt from "bcrypt";
 import multer from "multer";
 import XLSX from "xlsx";
@@ -352,6 +352,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Excel upload error:", error);
       res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+
+  // Database cleanup route
+  app.delete("/api/database/clear", requireAdmin, async (req, res) => {
+    try {
+      // Delete all portfolio assets first (foreign key constraints)
+      await db.delete(portfolioAssets);
+      
+      // Delete all portfolios
+      await db.delete(portfolios);
+      
+      // Delete all assets
+      await db.delete(assets);
+      
+      // Delete all uploads
+      await db.delete(uploads);
+      
+      console.log("Database cleared successfully");
+      res.json({ message: "Database cleared successfully" });
+    } catch (error) {
+      console.error("Database clear error:", error);
+      res.status(500).json({ message: "Failed to clear database" });
     }
   });
 
