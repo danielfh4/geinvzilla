@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, FileText, Upload, Plus, Download, Edit, Trash2, Check, X } from "lucide-react";
+import { FileSpreadsheet, FileText, Upload, Plus, Download, Edit, Trash2, Check, X, Database } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -48,11 +49,44 @@ export function Management() {
         description: "Arquivo enviado com sucesso. O processamento foi iniciado.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/uploads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
     },
     onError: (error: any) => {
       toast({
         title: "Erro no upload",
         description: error.message || "Erro ao enviar arquivo. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const clearDatabaseMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/database/clear", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to clear database");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Base de dados limpa",
+        description: "Todos os dados foram removidos com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolios"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao limpar base de dados",
+        description: error.message || "Erro ao limpar a base de dados. Tente novamente.",
         variant: "destructive",
       });
     },

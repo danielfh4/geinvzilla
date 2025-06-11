@@ -75,6 +75,9 @@ export interface IStorage {
   // Bulk operations
   bulkCreateAssets(assets: InsertAsset[]): Promise<Asset[]>;
   bulkCreateEconomicParameters(parameters: InsertEconomicParameter[]): Promise<EconomicParameter[]>;
+  
+  // Database cleanup
+  clearAllData(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -306,6 +309,15 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return result;
+  }
+
+  async clearAllData(): Promise<void> {
+    // Delete in order to respect foreign key constraints
+    await db.delete(portfolioAssets);
+    await db.delete(portfolios);
+    await db.delete(assets);
+    await db.delete(uploads);
+    await db.delete(economicParameters);
   }
 }
 

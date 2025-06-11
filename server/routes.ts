@@ -358,18 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Database cleanup route
   app.delete("/api/database/clear", requireAdmin, async (req, res) => {
     try {
-      // Delete all portfolio assets first (foreign key constraints)
-      await db.delete(portfolioAssets);
-      
-      // Delete all portfolios
-      await db.delete(portfolios);
-      
-      // Delete all assets
-      await db.delete(assets);
-      
-      // Delete all uploads
-      await db.delete(uploads);
-      
+      await storage.clearAllData();
       console.log("Database cleared successfully");
       res.json({ message: "Database cleared successfully" });
     } catch (error) {
