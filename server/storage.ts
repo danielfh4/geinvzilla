@@ -143,9 +143,11 @@ export class DatabaseStorage implements IStorage {
         FROM assets 
         WHERE is_active = true
       )
-      SELECT id, name, code, type, issuer, sector, rate, indexer, maturity_date, min_value, 
-             imported_at, frequency, rem_percentage, rating, coupon_months, unit_price, 
-             is_active, created_at, updated_at
+      SELECT id, name, code, type, issuer, sector, rate, indexer, 
+             maturity_date as "maturityDate", min_value as "minValue", 
+             imported_at as "importedAt", frequency, rem_percentage as "remPercentage", 
+             rating, coupon_months as "couponMonths", unit_price as "unitPrice", 
+             is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
       FROM RankedAssets 
       WHERE rn = 1
       ORDER BY created_at DESC
