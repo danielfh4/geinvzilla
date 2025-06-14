@@ -48,48 +48,13 @@ export function Portfolios() {
     },
   });
 
-  const { data: portfolios, isLoading } = useQuery({
+  const { data: portfolios, isLoading } = useQuery<Portfolio[]>({
     queryKey: ["/api/portfolios"],
   });
 
   const portfoliosArray = portfolios || [];
 
-  // Fetch assets for each portfolio to calculate metrics
-  const portfolioMetricsQueries = useQuery({
-    queryKey: ["/api/portfolios", "metrics"],
-    queryFn: async () => {
-      if (!portfoliosArray.length) return {};
-      
-      const metricsMap: Record<number, any> = {};
-      
-      for (const portfolio of portfoliosArray) {
-        try {
-          const response = await fetch(`/api/portfolios/${portfolio.id}/assets`, {
-            credentials: "include",
-          });
-          if (response.ok) {
-            const assets = await response.json();
-            const selectedAssets = assets.map((pa: any) => ({
-              asset: pa.asset,
-              quantity: parseFloat(pa.quantity),
-              value: parseFloat(pa.value),
-            }));
-            metricsMap[portfolio.id] = calculatePortfolioMetrics(selectedAssets);
-          }
-        } catch (error) {
-          console.error(`Error fetching assets for portfolio ${portfolio.id}:`, error);
-          metricsMap[portfolio.id] = {
-            totalAssets: 0,
-            totalValue: 0,
-            weightedRate: 0,
-          };
-        }
-      }
-      
-      return metricsMap;
-    },
-    enabled: !!portfoliosArray && portfoliosArray.length > 0,
-  });
+
 
   const createPortfolioMutation = useMutation({
     mutationFn: async (data: PortfolioFormData) => {
@@ -199,11 +164,6 @@ export function Portfolios() {
   };
 
   const getPortfolioMetrics = (portfolio: Portfolio) => {
-    // Use calculated metrics if available
-    if (portfolioMetricsQueries.data?.[portfolio.id]) {
-      return portfolioMetricsQueries.data[portfolio.id];
-    }
-    
     // For detailed view, use loaded portfolio assets
     if (portfolioAssets && selectedPortfolio?.id === portfolio.id) {
       return calculatePortfolioMetrics(
@@ -357,9 +317,9 @@ export function Portfolios() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-neutral-600">Taxa Média</p>
                   <p className="text-2xl font-semibold text-neutral-900">
-                    {(portfolios?.reduce((acc: number, p: Portfolio, _, arr: Portfolio[]) => 
+                    {(portfoliosArray.reduce((acc: number, p: Portfolio) => 
                       acc + parseFloat(p.weightedRate || "0"), 0
-                    ) / Math.max(portfolios?.length || 1, 1) || 0).toFixed(2)}%
+                    ) / Math.max(portfoliosArray.length || 1, 1) || 0).toFixed(2)}%
                   </p>
                 </div>
               </div>
@@ -378,7 +338,7 @@ export function Portfolios() {
                 <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-muted-foreground">Carregando carteiras...</p>
               </div>
-            ) : portfolios && portfolios.length > 0 ? (
+            ) : portfoliosArray && portfoliosArray.length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -393,7 +353,7 @@ export function Portfolios() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {portfolios.map((portfolio: Portfolio) => {
+                    {portfoliosArray.map((portfolio: Portfolio) => {
                       const metrics = getPortfolioMetrics(portfolio);
                       
                       return (
