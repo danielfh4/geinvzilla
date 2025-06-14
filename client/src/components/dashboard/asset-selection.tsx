@@ -428,33 +428,70 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
           </CardContent>
         </Card>
 
-        {/* Selected Assets Summary */}
+        {/* Portfolio Metrics Summary */}
         {selectedAssets.length > 0 && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Carteira em Construção</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{portfolioMetrics.totalAssets}</div>
-                  <div className="text-sm text-neutral-600">Ativos Selecionados</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-secondary">
-                    R$ {portfolioMetrics.totalValue.toLocaleString('pt-BR')}
+          <div className="mt-6 space-y-4">
+            {/* Main Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {editingPortfolioId ? "Resumo da Carteira" : "Carteira em Construção"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">{portfolioMetrics.totalAssets}</div>
+                    <div className="text-sm text-neutral-600">Ativos Selecionados</div>
                   </div>
-                  <div className="text-sm text-neutral-600">Valor Total</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-amber-600">
-                    {portfolioMetrics.weightedRate.toFixed(2)}%
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-secondary">
+                      R$ {portfolioMetrics.totalValue.toLocaleString('pt-BR')}
+                    </div>
+                    <div className="text-sm text-neutral-600">Valor Total</div>
                   </div>
-                  <div className="text-sm text-neutral-600">Taxa Média Ponderada</div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-600">
+                      {portfolioMetrics.weightedRate.toFixed(2)}%
+                    </div>
+                    <div className="text-sm text-neutral-600">Taxa Média Geral</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-emerald-600">
+                      R$ {portfolioMetrics.totalCommission.toLocaleString('pt-BR')}
+                    </div>
+                    <div className="text-sm text-neutral-600">Comissão Total</div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Weighted Rates by Indexer */}
+            {Object.keys(portfolioMetrics.weightedRateByIndexer).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Taxas Médias Ponderadas por Indexador</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Object.entries(portfolioMetrics.weightedRateByIndexer).map(([indexer, rate]) => (
+                      <div key={indexer} className="text-center p-4 border rounded-lg">
+                        <div className={`text-xl font-bold ${
+                          indexer === 'IPCA' ? 'text-red-600' :
+                          indexer.includes('CDI') ? 'text-yellow-600' :
+                          indexer === 'PREFIXADA' ? 'text-pink-600' :
+                          'text-blue-600'
+                        }`}>
+                          {rate.toFixed(2)}%
+                        </div>
+                        <div className="text-sm text-neutral-600">Taxa Média {indexer}</div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </div>
     </div>

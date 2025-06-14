@@ -10,6 +10,7 @@ export interface PortfolioMetrics {
   totalAssets: number;
   totalValue: number;
   weightedRate: number;
+  weightedRateByIndexer: Record<string, number>;
   concentrationByIssuer: Record<string, number>;
   concentrationBySector: Record<string, number>;
   concentrationByIndexer: Record<string, number>;
@@ -23,6 +24,7 @@ export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[]): Port
       totalAssets: 0,
       totalValue: 0,
       weightedRate: 0,
+      weightedRateByIndexer: {},
       concentrationByIssuer: {},
       concentrationBySector: {},
       concentrationByIndexer: {},
@@ -51,6 +53,30 @@ export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[]): Port
       }
     });
   }
+
+  // Calculate weighted rates by indexer
+  const weightedRateByIndexer: Record<string, number> = {};
+  const valueByIndexer: Record<string, number> = {};
+
+  selectedAssets.forEach(sa => {
+    const indexer = sa.asset.indexer;
+    const rate = extractNumericRate(sa.asset.rate);
+    
+    if (!weightedRateByIndexer[indexer]) {
+      weightedRateByIndexer[indexer] = 0;
+      valueByIndexer[indexer] = 0;
+    }
+    
+    weightedRateByIndexer[indexer] += rate * sa.value;
+    valueByIndexer[indexer] += sa.value;
+  });
+
+  // Normalize weighted rates by indexer
+  Object.keys(weightedRateByIndexer).forEach(indexer => {
+    if (valueByIndexer[indexer] > 0) {
+      weightedRateByIndexer[indexer] = weightedRateByIndexer[indexer] / valueByIndexer[indexer];
+    }
+  });
 
   // Calculate concentrations
   const concentrationByIssuer: Record<string, number> = {};
@@ -90,6 +116,7 @@ export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[]): Port
     totalAssets,
     totalValue,
     weightedRate,
+    weightedRateByIndexer,
     concentrationByIssuer,
     concentrationBySector,
     concentrationByIndexer,
