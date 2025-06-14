@@ -222,6 +222,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/assets/:code/history", requireAuth, async (req, res) => {
+    try {
+      const { code } = req.params;
+      const history = await storage.getAssetHistory(code);
+      res.json(history);
+    } catch (error) {
+      console.error("Get asset history error:", error);
+      res.status(500).json({ message: "Failed to fetch asset history" });
+    }
+  });
+
   app.post("/api/assets", requireAdmin, async (req, res) => {
     try {
       const assetData = insertAssetSchema.parse(req.body);

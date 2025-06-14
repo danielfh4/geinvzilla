@@ -87,6 +87,9 @@ export interface IStorage {
   // Database cleanup
   clearAllAssets(): Promise<void>;
   clearAllData(): Promise<void>;
+  
+  // Asset history
+  getAssetHistory(code: string): Promise<Asset[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -164,8 +167,12 @@ export class DatabaseStorage implements IStorage {
     type?: string;
     indexer?: string;
     minRate?: number;
+    maxRate?: number;
     minValue?: number;
+    maxValue?: number;
     issuer?: string;
+    couponMonth?: string;
+    couponMonths?: number[];
   }): Promise<Asset[]> {
     let query = db.select().from(assets).where(eq(assets.isActive, true));
     
@@ -395,6 +402,13 @@ export class DatabaseStorage implements IStorage {
     await db.delete(assets);
     await db.delete(uploads);
     await db.delete(economicParameters);
+  }
+
+  async getAssetHistory(code: string): Promise<Asset[]> {
+    return await db.select()
+      .from(assets)
+      .where(eq(assets.code, code))
+      .orderBy(desc(assets.importedAt));
   }
 }
 
