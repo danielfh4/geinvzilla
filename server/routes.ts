@@ -736,7 +736,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const date = new Date((excelDate - 25569) * 86400 * 1000);
               return date.toISOString().split('T')[0];
             }
-            return String(excelDate || '');
+            if (typeof excelDate === 'string' && excelDate.trim()) {
+              // Try to parse different date formats
+              const dateFormats = [
+                /(\d{1,2})\/(\d{1,2})\/(\d{4})/,  // DD/MM/YYYY or MM/DD/YYYY
+                /(\d{4})-(\d{1,2})-(\d{1,2})/,   // YYYY-MM-DD
+                /(\d{1,2})-(\d{1,2})-(\d{4})/    // DD-MM-YYYY
+              ];
+              
+              for (const format of dateFormats) {
+                const match = excelDate.match(format);
+                if (match) {
+                  // Assume DD/MM/YYYY format for slash-separated dates
+                  if (format === dateFormats[0]) {
+                    const [, day, month, year] = match;
+                    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                    if (!isNaN(date.getTime())) {
+                      return date.toISOString().split('T')[0];
+                    }
+                  } else {
+                    const date = new Date(excelDate);
+                    if (!isNaN(date.getTime())) {
+                      return date.toISOString().split('T')[0];
+                    }
+                  }
+                }
+              }
+            }
+            return null;
           };
 
           // Helper function to find column value with flexible matching

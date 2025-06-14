@@ -20,7 +20,10 @@ import type { Asset } from "@shared/schema";
 function AssetHistoryChart({ assetCode }: { assetCode: string }) {
   const { data: assetHistory, isLoading } = useQuery({
     queryKey: ["/api/assets", assetCode, "history"],
-    queryFn: () => apiRequest(`/api/assets/${assetCode}/history`),
+    queryFn: async () => {
+      const response = await apiRequest(`/api/assets/${assetCode}/history`);
+      return response;
+    },
   });
 
   if (isLoading) {
@@ -34,7 +37,7 @@ function AssetHistoryChart({ assetCode }: { assetCode: string }) {
     );
   }
 
-  if (!assetHistory || assetHistory.length === 0) {
+  if (!assetHistory || !Array.isArray(assetHistory) || assetHistory.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center">
         <div className="text-center">
@@ -47,13 +50,13 @@ function AssetHistoryChart({ assetCode }: { assetCode: string }) {
 
   // Prepare chart data
   const chartData = assetHistory
-    .map((asset: Asset) => ({
+    .map((asset: any) => ({
       date: asset.importedAt ? new Date(asset.importedAt).toLocaleDateString('pt-BR') : new Date(asset.createdAt).toLocaleDateString('pt-BR'),
       pu: asset.unitPrice ? parseFloat(asset.unitPrice) : null,
       taxa: asset.rate ? parseFloat(asset.rate.replace(/[^\d,.-]/g, '').replace(',', '.')) : null,
       timestamp: asset.importedAt ? new Date(asset.importedAt).getTime() : new Date(asset.createdAt).getTime()
     }))
-    .sort((a, b) => a.timestamp - b.timestamp)
+    .sort((a: any, b: any) => a.timestamp - b.timestamp)
     .slice(-12); // Last 12 entries
 
   return (
@@ -737,11 +740,23 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                           </TableCell>
                           <TableCell>{asset.maturityDate}</TableCell>
                           <TableCell>
-                            R$ {asset.unitPrice ? parseFloat(asset.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : parseFloat(asset.minValue).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {(() => {
+                              const price = asset.unitPrice || asset.minValue || '1000.00';
+                              const numericPrice = typeof price === 'string' ? parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.')) : parseFloat(price);
+                              return isNaN(numericPrice) ? 'R$ 1.000,00' : `R$ ${numericPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                            })()}
                           </TableCell>
                           <TableCell>{asset.frequency || '-'}</TableCell>
                           <TableCell>{asset.couponMonths || '-'}</TableCell>
-                          <TableCell>{asset.remPercentage ? `${parseFloat(asset.remPercentage).toFixed(2)}%` : '-'}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              if (!asset.remPercentage) return '-';
+                              const numericValue = typeof asset.remPercentage === 'string' ? 
+                                parseFloat(asset.remPercentage.replace(/[^\d.,]/g, '').replace(',', '.')) : 
+                                parseFloat(asset.remPercentage);
+                              return isNaN(numericValue) ? '-' : `${numericValue.toFixed(2)}%`;
+                            })()}
+                          </TableCell>
                           <TableCell>
                             {isSelected ? (
                               <Input
