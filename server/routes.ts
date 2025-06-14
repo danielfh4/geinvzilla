@@ -195,13 +195,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Asset routes
   app.get("/api/assets", requireAuth, async (req, res) => {
     try {
-      const { type, indexer, minValue, issuer } = req.query;
+      const { type, indexer, minRate, maxRate, minValue, maxValue, couponMonth, couponMonths, issuer } = req.query;
       
       const filters: any = {};
-      if (type) filters.type = type as string;
-      if (indexer) filters.indexer = indexer as string;
+      if (type && type !== "all") filters.type = type as string;
+      if (indexer && indexer !== "all") filters.indexer = indexer as string;
+      if (minRate) filters.minRate = parseFloat(minRate as string);
+      if (maxRate) filters.maxRate = parseFloat(maxRate as string);
       if (minValue) filters.minValue = parseFloat(minValue as string);
+      if (maxValue) filters.maxValue = parseFloat(maxValue as string);
       if (issuer) filters.issuer = issuer as string;
+      if (couponMonth && couponMonth !== "all") filters.couponMonth = couponMonth as string;
+      if (couponMonths) {
+        const monthsArray = (couponMonths as string).split(',').map(m => parseInt(m.trim())).filter(m => !isNaN(m));
+        if (monthsArray.length > 0) filters.couponMonths = monthsArray;
+      }
       
       const assets = Object.keys(filters).length > 0 
         ? await storage.searchAssets(filters)

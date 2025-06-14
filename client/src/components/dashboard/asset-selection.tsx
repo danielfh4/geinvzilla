@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Save, Plus, Settings, X, ChevronUp, ChevronDown } from "lucide-react";
+import { Filter, Save, Plus, Settings, X, ChevronUp, ChevronDown, TrendingUp, BarChart } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { calculatePortfolioMetrics } from "@/lib/calculations";
@@ -677,6 +678,125 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
           </CardContent>
         </Card>
 
+        {/* Asset Detail Modal */}
+        {selectedAssetForDetail && (
+          <Dialog open={!!selectedAssetForDetail} onOpenChange={() => setSelectedAssetForDetail(null)}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xl font-bold">{selectedAssetForDetail.name}</div>
+                    <div className="text-sm text-muted-foreground">{selectedAssetForDetail.code}</div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Badge className={getAssetTypeColor(selectedAssetForDetail.type)}>
+                      {selectedAssetForDetail.type}
+                    </Badge>
+                    <Badge className={getIndexerColor(selectedAssetForDetail.indexer)}>
+                      {selectedAssetForDetail.indexer}
+                    </Badge>
+                  </div>
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Asset Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Informações do Ativo</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Emissor</Label>
+                        <div className="font-medium">{selectedAssetForDetail.issuer}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Taxa</Label>
+                        <div className="font-medium text-green-600">{selectedAssetForDetail.rate}%</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Vencimento</Label>
+                        <div className="font-medium">{selectedAssetForDetail.maturityDate}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Preço Unitário</Label>
+                        <div className="font-medium">
+                          R$ {selectedAssetForDetail.unitPrice ? 
+                            parseFloat(selectedAssetForDetail.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : 
+                            parseFloat(selectedAssetForDetail.minValue).toLocaleString('pt-BR')}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Frequência Cupom</Label>
+                        <div className="font-medium">{selectedAssetForDetail.frequency || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Meses Cupom</Label>
+                        <div className="font-medium">{selectedAssetForDetail.couponMonths || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Valor Mínimo</Label>
+                        <div className="font-medium">R$ {parseFloat(selectedAssetForDetail.minValue).toLocaleString('pt-BR')}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Comissão</Label>
+                        <div className="font-medium">0%</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Price History Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Histórico de Preço (Últimos 12 Meses)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Gráfico de histórico será implementado</p>
+                        <p className="text-sm">com dados históricos reais</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Rate Comparison Chart */}
+                <Card className="md:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Comparação de Taxa com Indexadores</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <BarChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Gráfico comparativo será implementado</p>
+                        <p className="text-sm">comparando taxa do ativo com CDI, IPCA e outros indexadores</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => setSelectedAssetForDetail(null)}>
+                  Fechar
+                </Button>
+                <Button 
+                  onClick={() => {
+                    handleAssetSelect(selectedAssetForDetail, true);
+                    setSelectedAssetForDetail(null);
+                  }}
+                  disabled={selectedAssets.some(sa => sa.asset.id === selectedAssetForDetail.id)}
+                >
+                  {selectedAssets.some(sa => sa.asset.id === selectedAssetForDetail.id) ? 'Já Selecionado' : 'Adicionar à Carteira'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
       </div>
     </div>
