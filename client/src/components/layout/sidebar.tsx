@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChartLine, Gauge, Coins, Briefcase, BarChart3, FileText, Settings, ShieldX, User as UserIcon, LogOut } from "lucide-react";
+import { ChartLine, Gauge, Coins, Briefcase, BarChart3, FileText, Settings, ShieldX, User as UserIcon, LogOut, Users, Sliders } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
@@ -67,6 +67,18 @@ export function Sidebar({ user, activeSection, onSectionChange }: SidebarProps) 
       id: "management",
       label: "Gestão de Dados",
       icon: Settings,
+      roles: ["admin"],
+    },
+    {
+      id: "users",
+      label: "Gestão de Usuários",
+      icon: Users,
+      roles: ["admin"],
+    },
+    {
+      id: "parameters",
+      label: "Parâmetros",
+      icon: Sliders,
       roles: ["admin"],
     },
   ];

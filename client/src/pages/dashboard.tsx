@@ -7,6 +7,8 @@ import { Analytics } from "@/components/dashboard/analytics";
 import { Management } from "@/components/dashboard/management";
 import { Reports } from "@/components/dashboard/reports";
 import { Portfolios } from "@/components/dashboard/portfolios";
+import { UserManagement } from "@/components/dashboard/user-management";
+import { ParameterManagement } from "@/components/dashboard/parameter-management";
 import { useAuth } from "@/lib/auth";
 import { Search, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";

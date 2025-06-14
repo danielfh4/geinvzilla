@@ -49,10 +49,17 @@ export function UserManagement() {
 
   const createUserMutation = useMutation({
     mutationFn: async (data: UserFormData) => {
-      return await apiRequest("/api/users", {
+      const response = await fetch("/api/users", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create user");
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -74,10 +81,17 @@ export function UserManagement() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<UserFormData> }) => {
-      return await apiRequest(`/api/users/${id}`, {
+      const response = await fetch(`/api/users/${id}`, {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update user");
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -100,9 +114,15 @@ export function UserManagement() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/users/${id}`, {
+      const response = await fetch(`/api/users/${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete user");
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -122,11 +142,13 @@ export function UserManagement() {
 
   const handleSubmit = (data: UserFormData) => {
     if (editingUser) {
-      const updateData = { ...data };
+      const updateData: Partial<UserFormData> = { ...data };
       if (!data.password) {
-        delete updateData.password; // Don't update password if empty
+        const { password, ...dataWithoutPassword } = updateData;
+        updateUserMutation.mutate({ id: editingUser.id, data: dataWithoutPassword });
+      } else {
+        updateUserMutation.mutate({ id: editingUser.id, data: updateData });
       }
-      updateUserMutation.mutate({ id: editingUser.id, data: updateData });
     } else {
       createUserMutation.mutate(data);
     }

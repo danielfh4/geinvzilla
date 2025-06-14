@@ -20,10 +20,17 @@ export function ParameterManagement() {
 
   const updateParameterMutation = useMutation({
     mutationFn: async ({ name, value }: { name: string; value: number }) => {
-      return await apiRequest(`/api/parameters/${name}`, {
+      const response = await fetch(`/api/parameters/${name}`, {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ value }),
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update parameter");
+      }
+      return response.json();
     },
     onSuccess: (_, { name }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/parameters"] });
