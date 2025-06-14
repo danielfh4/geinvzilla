@@ -1,4 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Overview } from "@/components/dashboard/overview";
+import { AssetSelection } from "@/components/dashboard/asset-selection";
+import { Analytics } from "@/components/dashboard/analytics";
+import { Management } from "@/components/dashboard/management";
+import { Reports } from "@/components/dashboard/reports";
+import { Portfolios } from "@/components/dashboard/portfolios";
+import { UserManagement } from "@/components/dashboard/user-management";
+import { ParameterManagement } from "@/components/dashboard/parameter-management";
+import { Search, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function LoginForm({ onLogin }: { onLogin: () => void }) {
   const [username, setUsername] = useState("admin");
@@ -131,6 +145,72 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [activeSection, setActiveSection] = useState("overview");
+  const [editingPortfolioId, setEditingPortfolioId] = useState<number | null>(null);
+
+  // Create a user object for dashboard functionality
+  const user = {
+    id: 1,
+    username: "admin",
+    role: "admin",
+    password: "",
+    name: "Administrator",
+    email: "admin@investportfolio.com",
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  const getSectionTitle = () => {
+    const titles = {
+      overview: "Dashboard",
+      assets: "Seleção de Ativos", 
+      portfolios: "Carteiras",
+      analytics: "Análises",
+      reports: "Relatórios",
+      management: "Gestão de Dados",
+      users: "Usuários",
+      parameters: "Parâmetros"
+    };
+    return titles[activeSection as keyof typeof titles] || "Dashboard";
+  };
+
+  const handleEditPortfolio = (portfolioId: number) => {
+    setEditingPortfolioId(portfolioId);
+    setActiveSection("assets");
+  };
+
+  const handlePortfolioSaved = () => {
+    setEditingPortfolioId(null);
+    setActiveSection("portfolios");
+  };
+
+  const renderSection = () => {
+    switch (activeSection) {
+      case "overview":
+        return <Overview />;
+      case "assets":
+        return (
+          <AssetSelection 
+            editingPortfolioId={editingPortfolioId}
+            onPortfolioSaved={handlePortfolioSaved}
+          />
+        );
+      case "portfolios":
+        return <Portfolios onEditPortfolio={handleEditPortfolio} />;
+      case "analytics":
+        return <Analytics />;
+      case "reports":
+        return <Reports />;
+      case "management":
+        return <Management />;
+      case "users":
+        return <UserManagement />;
+      case "parameters":
+        return <ParameterManagement />;
+      default:
+        return <Overview />;
+    }
+  };
 
   const sections = [
     { id: "overview", name: "Dashboard", icon: "📊" },
@@ -143,92 +223,42 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     { id: "parameters", name: "Parâmetros", icon: "🔧" }
   ];
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case "overview":
-        return (
-          <div>
-            <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "1rem" }}>Dashboard</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1rem" }}>
-              <div style={{ padding: "1.5rem", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-                <h3 style={{ fontWeight: "600", marginBottom: "0.5rem" }}>Total de Ativos</h3>
-                <p style={{ fontSize: "2rem", fontWeight: "bold", color: "#2563eb" }}>0</p>
-              </div>
-              <div style={{ padding: "1.5rem", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-                <h3 style={{ fontWeight: "600", marginBottom: "0.5rem" }}>Carteiras Ativas</h3>
-                <p style={{ fontSize: "2rem", fontWeight: "bold", color: "#059669" }}>0</p>
-              </div>
-              <div style={{ padding: "1.5rem", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-                <h3 style={{ fontWeight: "600", marginBottom: "0.5rem" }}>Valor Total</h3>
-                <p style={{ fontSize: "2rem", fontWeight: "bold", color: "#7c3aed" }}>R$ 0,00</p>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <div>
-            <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "1rem" }}>
-              {sections.find(s => s.id === activeSection)?.name || "Seção"}
-            </h2>
-            <div style={{ padding: "2rem", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", textAlign: "center" }}>
-              <p style={{ color: "#6b7280" }}>Esta seção está sendo desenvolvida.</p>
-              <p style={{ color: "#6b7280", marginTop: "0.5rem" }}>Funcionalidades completas serão adicionadas em breve.</p>
-            </div>
-          </div>
-        );
-    }
-  };
-
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#f9fafb" }}>
+    <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div style={{ width: "250px", backgroundColor: "#1f2937", color: "white", padding: "1rem" }}>
-        <div style={{ marginBottom: "2rem" }}>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: "bold" }}>InvestPortfolio</h1>
-          <p style={{ fontSize: "0.875rem", color: "#9ca3af" }}>Sistema de Gestão</p>
+      <div className="w-64 bg-white shadow-lg">
+        <div className="p-6">
+          <h1 className="text-xl font-bold text-gray-900">InvestPortfolio</h1>
+          <p className="text-sm text-gray-500">Sistema de Gestão</p>
         </div>
         
-        <nav>
+        <nav className="mt-6">
           {sections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-                padding: "0.75rem",
-                marginBottom: "0.25rem",
-                backgroundColor: activeSection === section.id ? "#374151" : "transparent",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontSize: "0.875rem",
-                textAlign: "left"
-              }}
+              className={`w-full flex items-center px-6 py-3 text-sm font-medium ${
+                activeSection === section.id
+                  ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
             >
-              <span>{section.icon}</span>
+              <span className="mr-3">{section.icon}</span>
               {section.name}
             </button>
           ))}
         </nav>
         
-        <div style={{ marginTop: "auto", paddingTop: "2rem" }}>
+        <div className="absolute bottom-0 w-64 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm">
+              <p className="font-medium text-gray-900">{user.name}</p>
+              <p className="text-gray-500">{user.role}</p>
+            </div>
+          </div>
           <button
             onClick={onLogout}
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              backgroundColor: "#dc2626",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.875rem"
-            }}
+            className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
           >
             Sair
           </button>
@@ -236,8 +266,28 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       </div>
       
       {/* Main Content */}
-      <div style={{ flex: 1, padding: "2rem" }}>
-        {renderContent()}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b border-gray-200">
+          <div className="flex items-center justify-between px-6 py-4">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {getSectionTitle()}
+            </h1>
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm">
+                <Search className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm">
+                <Bell className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </header>
+        
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {renderSection()}
+        </main>
       </div>
     </div>
   );
@@ -262,10 +312,17 @@ function App() {
     setIsLoggedIn(false);
   };
 
-  return isLoggedIn ? (
-    <Dashboard onLogout={handleLogout} />
-  ) : (
-    <LoginForm onLogin={handleLogin} />
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        {isLoggedIn ? (
+          <Dashboard onLogout={handleLogout} />
+        ) : (
+          <LoginForm onLogin={handleLogin} />
+        )}
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }
 
