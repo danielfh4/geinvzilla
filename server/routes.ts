@@ -859,23 +859,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'PU', 'pu', 'Pu', 'PRECO UNITARIO', 'Preco Unitario', 'preco_unitario',
                 'UNIT PRICE', 'Unit Price', 'unit_price', 'VALOR UNITARIO', 'Valor Unitario', 'valor_unitario'
               ]);
-              if (!puValue || puValue === '') return '1000.00';
+              
+              if (!puValue || puValue === '' || puValue === null || puValue === undefined) {
+                console.log(`No PU value found for asset ${assetCode}, using default 1000.00`);
+                return null; // Return null instead of default value when no PU is found
+              }
               
               let numericValue;
               if (typeof puValue === 'string') {
-                // Remove any currency symbols and replace comma with dot
-                const cleanValue = puValue.replace(/[R$\s]/g, '').replace(',', '.');
+                // Handle Brazilian decimal format (1.234,56) and international format (1,234.56)
+                let cleanValue = puValue.toString().trim();
+                
+                // Remove currency symbols
+                cleanValue = cleanValue.replace(/[R$\s]/g, '');
+                
+                // Handle Brazilian format: if there's a comma after digits, it's decimal separator
+                if (/\d+,\d{1,2}$/.test(cleanValue)) {
+                  // Brazilian format: 1.234,56 -> 1234.56
+                  cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
+                } else if (/\d+\.\d{1,2}$/.test(cleanValue)) {
+                  // Already in correct format: 1234.56
+                  cleanValue = cleanValue.replace(/,/g, '');
+                }
+                
                 numericValue = parseFloat(cleanValue);
               } else {
                 numericValue = parseFloat(puValue);
               }
               
-              // Ensure we have a valid number
+              // Validate the number
               if (isNaN(numericValue) || numericValue <= 0) {
-                return '1000.00';
+                console.log(`Invalid PU value "${puValue}" for asset ${assetCode}, skipping PU`);
+                return null;
               }
               
-              // Return with 2 decimal places
+              console.log(`Asset ${assetCode} PU: "${puValue}" -> ${numericValue.toFixed(2)}`);
               return numericValue.toFixed(2);
             })()),
           };

@@ -633,7 +633,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                 <p className="text-muted-foreground">Carregando ativos...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="max-h-[600px] overflow-y-auto border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -747,9 +747,21 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                           </TableCell>
                           <TableCell>
                             {(() => {
-                              const price = asset.unitPrice || asset.minValue || '1000.00';
-                              const numericPrice = typeof price === 'string' ? parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.')) : parseFloat(price);
-                              return isNaN(numericPrice) ? 'R$ 1.000,00' : `R$ ${numericPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                              if (!asset.unitPrice && !asset.minValue) return '-';
+                              
+                              const price = asset.unitPrice || asset.minValue;
+                              if (!price || price === 'null') return '-';
+                              
+                              const numericPrice = typeof price === 'string' ? 
+                                parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.')) : 
+                                parseFloat(price);
+                              
+                              if (isNaN(numericPrice) || numericPrice <= 0) return '-';
+                              
+                              return `R$ ${numericPrice.toLocaleString('pt-BR', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                              })}`;
                             })()}
                           </TableCell>
                           <TableCell>{asset.frequency || '-'}</TableCell>
