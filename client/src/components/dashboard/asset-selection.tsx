@@ -18,11 +18,16 @@ import type { Asset } from "@shared/schema";
 
 // Asset History Chart Component
 function AssetHistoryChart({ assetCode }: { assetCode: string }) {
-  const { data: assetHistory, isLoading } = useQuery({
+  const { data: assetHistory, isLoading, error } = useQuery({
     queryKey: ["/api/assets", assetCode, "history"],
     queryFn: async () => {
-      const response = await apiRequest(`/api/assets/${assetCode}/history`);
-      return response;
+      try {
+        const response = await apiRequest(`/api/assets/${assetCode}/history`);
+        return response;
+      } catch (error) {
+        console.error('Error fetching asset history:', error);
+        throw error;
+      }
     },
   });
 
@@ -32,6 +37,18 @@ function AssetHistoryChart({ assetCode }: { assetCode: string }) {
         <div className="text-center">
           <TrendingUp className="h-8 w-8 mx-auto mb-2 animate-pulse opacity-50" />
           <p className="text-muted-foreground">Carregando histórico...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center">
+          <X className="h-8 w-8 mx-auto mb-2 text-red-500 opacity-50" />
+          <p className="text-muted-foreground">Erro ao carregar histórico</p>
+          <p className="text-sm text-red-500">{String(error)}</p>
         </div>
       </div>
     );
@@ -48,14 +65,22 @@ function AssetHistoryChart({ assetCode }: { assetCode: string }) {
     );
   }
 
-  // Prepare chart data
+  // Prepare chart data with better error handling
   const chartData = assetHistory
-    .map((asset: any) => ({
-      date: asset.importedAt ? new Date(asset.importedAt).toLocaleDateString('pt-BR') : new Date(asset.createdAt).toLocaleDateString('pt-BR'),
-      pu: asset.unitPrice ? parseFloat(asset.unitPrice) : null,
-      taxa: asset.rate ? parseFloat(asset.rate.replace(/[^\d,.-]/g, '').replace(',', '.')) : null,
-      timestamp: asset.importedAt ? new Date(asset.importedAt).getTime() : new Date(asset.createdAt).getTime()
-    }))
+    .filter((asset: any) => asset && (asset.importedAt || asset.createdAt))
+    .map((asset: any) => {
+      const importDate = asset.importedAt ? new Date(asset.importedAt) : new Date(asset.createdAt);
+      const unitPrice = asset.unitPrice || asset.unit_price;
+      const rate = asset.rate;
+      
+      return {
+        date: importDate.toLocaleDateString('pt-BR'),
+        pu: unitPrice ? parseFloat(String(unitPrice)) : null,
+        taxa: rate ? parseFloat(String(rate).replace(/[^\d,.-]/g, '').replace(',', '.')) : null,
+        timestamp: importDate.getTime()
+      };
+    })
+    .filter((item: any) => !isNaN(item.timestamp))
     .sort((a: any, b: any) => a.timestamp - b.timestamp)
     .slice(-12); // Last 12 entries
 

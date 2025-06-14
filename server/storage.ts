@@ -500,10 +500,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssetHistory(code: string): Promise<Asset[]> {
-    return await db.select()
-      .from(assets)
-      .where(eq(assets.code, code))
-      .orderBy(desc(assets.importedAt));
+    // Get asset history from the new structure
+    const result = await pool.query(`
+      SELECT 
+        au.id, au.name, au.code, au.type, au.issuer, au.sector, au.indexer,
+        au.maturity_date as "maturityDate", au.frequency, au.rating, 
+        au.coupon_months as "couponMonths", au.is_active as "isActive", 
+        au.created_at as "createdAt", au.updated_at as "updatedAt",
+        ah.rate, ah.unit_price as "unitPrice", ah.min_value as "minValue", 
+        ah.rem_percentage as "remPercentage", ah.imported_at as "importedAt"
+      FROM assets_unique au
+      INNER JOIN asset_histories ah ON ah.asset_code = au.code
+      WHERE au.code = $1 AND au.is_active = true
+      ORDER BY ah.imported_at DESC NULLS LAST, ah.created_at DESC
+    `, [code]);
+    
+    return result.rows as Asset[];
   }
 }
 
