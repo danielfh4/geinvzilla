@@ -355,9 +355,19 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
   };
 
   const getSortedAssets = () => {
-    if (!assets || !sortConfig) return assets || [];
+    if (!assets) return [];
     
-    return [...assets].sort((a, b) => {
+    // Filter assets based on showSelectedOnly
+    let filteredAssets = assets;
+    if (showSelectedOnly) {
+      filteredAssets = assets.filter(asset => 
+        selectedAssets.some(sa => sa.asset.id === asset.id)
+      );
+    }
+    
+    if (!sortConfig) return filteredAssets;
+    
+    return [...filteredAssets].sort((a, b) => {
       let aValue: any = a[sortConfig.key as keyof Asset];
       let bValue: any = b[sortConfig.key as keyof Asset];
       

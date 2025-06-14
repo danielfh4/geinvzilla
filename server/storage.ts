@@ -299,19 +299,63 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPortfolioAssets(portfolioId: number): Promise<(PortfolioAsset & { asset: Asset })[]> {
-    const result = await db.select({
-      id: portfolioAssets.id,
-      portfolioId: portfolioAssets.portfolioId,
-      assetId: portfolioAssets.assetId,
-      quantity: portfolioAssets.quantity,
-      value: portfolioAssets.value,
-      createdAt: portfolioAssets.createdAt,
-      asset: assets,
-    }).from(portfolioAssets)
-      .innerJoin(assets, eq(portfolioAssets.assetId, assets.id))
-      .where(eq(portfolioAssets.portfolioId, portfolioId));
+    // Use raw SQL to join with the new structure
+    const result = await pool.query(`
+      SELECT 
+        pa.id, pa.portfolio_id as "portfolioId", pa.asset_id as "assetId", 
+        pa.quantity, pa.value, pa.created_at as "createdAt",
+        au.id as "asset.id", au.name as "asset.name", au.code as "asset.code", 
+        au.type as "asset.type", au.issuer as "asset.issuer", au.sector as "asset.sector", 
+        au.indexer as "asset.indexer", au.maturity_date as "asset.maturityDate", 
+        au.frequency as "asset.frequency", au.rating as "asset.rating", 
+        au.coupon_months as "asset.couponMonths", au.is_active as "asset.isActive", 
+        au.created_at as "asset.createdAt", au.updated_at as "asset.updatedAt",
+        ah.rate as "asset.rate", ah.unit_price as "asset.unitPrice", 
+        ah.min_value as "asset.minValue", ah.rem_percentage as "asset.remPercentage", 
+        ah.imported_at as "asset.importedAt"
+      FROM portfolio_assets pa
+      INNER JOIN assets_unique au ON pa.asset_id = au.id
+      LEFT JOIN LATERAL (
+        SELECT rate, unit_price, min_value, rem_percentage, imported_at
+        FROM asset_histories 
+        WHERE asset_code = au.code 
+        ORDER BY imported_at DESC NULLS LAST, created_at DESC
+        LIMIT 1
+      ) ah ON true
+      WHERE pa.portfolio_id = $1
+      ORDER BY pa.created_at DESC
+    `, [portfolioId]);
     
-    return result;
+    // Transform the flat result into the expected nested structure
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      portfolioId: row.portfolioId,
+      assetId: row.assetId,
+      quantity: row.quantity,
+      value: row.value,
+      createdAt: row.createdAt,
+      asset: {
+        id: row['asset.id'],
+        name: row['asset.name'],
+        code: row['asset.code'],
+        type: row['asset.type'],
+        issuer: row['asset.issuer'],
+        sector: row['asset.sector'],
+        indexer: row['asset.indexer'],
+        maturityDate: row['asset.maturityDate'],
+        frequency: row['asset.frequency'],
+        rating: row['asset.rating'],
+        couponMonths: row['asset.couponMonths'],
+        isActive: row['asset.isActive'],
+        createdAt: row['asset.createdAt'],
+        updatedAt: row['asset.updatedAt'],
+        rate: row['asset.rate'],
+        unitPrice: row['asset.unitPrice'],
+        minValue: row['asset.minValue'],
+        remPercentage: row['asset.remPercentage'],
+        importedAt: row['asset.importedAt'],
+      }
+    }));
   }
 
   async addAssetToPortfolio(portfolioAsset: InsertPortfolioAsset): Promise<PortfolioAsset> {
