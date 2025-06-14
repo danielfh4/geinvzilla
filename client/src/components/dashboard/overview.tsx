@@ -2,21 +2,81 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Briefcase, Coins, TrendingUp, DollarSign, Plus, Search, Download } from "lucide-react";
+import { calculatePortfolioMetrics } from "@/lib/calculations";
+import type { Portfolio } from "@shared/schema";
 
 export function Overview() {
   const { data: assets } = useQuery({
     queryKey: ["/api/assets"],
   });
 
-  const { data: portfolios } = useQuery({
+  const { data: portfolios } = useQuery<Portfolio[]>({
     queryKey: ["/api/portfolios"],
   });
 
-  const metrics = {
+  const { data: economicParameters } = useQuery({
+    queryKey: ["/api/parameters"],
+  });
+
+  // Calculate aggregated metrics from all portfolios
+  const calculateAggregatedMetrics = async () => {
+    if (!portfolios || portfolios.length === 0) {
+      return {
+        activePortfolios: 0,
+        totalAssets: assets?.length || 0,
+        averageRate: 0,
+        totalVolume: 0,
+      };
+    }
+
+    let totalValue = 0;
+    let totalWeightedRate = 0;
+    let totalAssetsInPortfolios = 0;
+
+    for (const portfolio of portfolios) {
+      try {
+        const response = await fetch(`/api/portfolios/${portfolio.id}/assets`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const portfolioAssets = await response.json();
+          const selectedAssets = portfolioAssets.map((pa: any) => ({
+            asset: pa.asset,
+            quantity: parseFloat(pa.quantity),
+            value: parseFloat(pa.value),
+          }));
+
+          const metrics = calculatePortfolioMetrics(selectedAssets, economicParameters);
+          if (metrics) {
+            totalValue += metrics.totalValue;
+            totalWeightedRate += metrics.weightedRate * metrics.totalValue;
+            totalAssetsInPortfolios += metrics.totalAssets;
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching portfolio ${portfolio.id}:`, error);
+      }
+    }
+
+    return {
+      activePortfolios: portfolios.length,
+      totalAssets: assets?.length || 0,
+      averageRate: totalValue > 0 ? totalWeightedRate / totalValue : 0,
+      totalVolume: totalValue,
+    };
+  };
+
+  const { data: metrics } = useQuery({
+    queryKey: ["/api/portfolios/aggregated-metrics", portfolios, economicParameters],
+    queryFn: calculateAggregatedMetrics,
+    enabled: !!portfolios && !!economicParameters,
+  });
+
+  const displayMetrics = metrics || {
     activePortfolios: portfolios?.length || 0,
     totalAssets: assets?.length || 0,
-    averageRate: "12.45%",
-    totalVolume: "R$ 45.2M",
+    averageRate: 0,
+    totalVolume: 0,
   };
 
   const recentActivity = [
@@ -94,7 +154,7 @@ export function Overview() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-neutral-600">Carteiras Ativas</p>
                 <p className="text-2xl font-semibold text-neutral-900">
-                  {metrics.activePortfolios}
+                  {displayMetrics.activePortfolios}
                 </p>
               </div>
             </div>
@@ -112,7 +172,7 @@ export function Overview() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-neutral-600">Ativos Cadastrados</p>
                 <p className="text-2xl font-semibold text-neutral-900">
-                  {metrics.totalAssets}
+                  {displayMetrics.totalAssets}
                 </p>
               </div>
             </div>
@@ -130,7 +190,7 @@ export function Overview() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-neutral-600">Taxa Média</p>
                 <p className="text-2xl font-semibold text-neutral-900">
-                  {metrics.averageRate}
+                  {displayMetrics.averageRate.toFixed(2)}%
                 </p>
               </div>
             </div>
@@ -148,7 +208,10 @@ export function Overview() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-neutral-600">Volume Total</p>
                 <p className="text-2xl font-semibold text-neutral-900">
-                  {metrics.totalVolume}
+                  R$ {displayMetrics.totalVolume.toLocaleString('pt-BR', { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                  })}
                 </p>
               </div>
             </div>

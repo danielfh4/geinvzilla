@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Save, Plus } from "lucide-react";
+import { Filter, Save, Plus, Settings, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { calculatePortfolioMetrics } from "@/lib/calculations";
@@ -32,9 +32,10 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
     type: "all",
     indexer: "all",
     minRate: "",
-    minValue: "",
+    couponMonth: "",
     issuer: "",
   });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<SelectedAsset[]>([]);
   const [portfolioName, setPortfolioName] = useState("");
 
@@ -236,9 +237,17 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
             </p>
           </div>
           <div className="flex space-x-3">
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
+              <Settings className="mr-2 h-4 w-4" />
               Filtros Avançados
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedAssets([])}
+              disabled={selectedAssets.length === 0}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Limpar Seleção
             </Button>
             <Button onClick={handleSavePortfolio} disabled={selectedAssets.length === 0 || savePortfolioMutation.isPending}>
               <Save className="mr-2 h-4 w-4" />
