@@ -1,65 +1,71 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { calculatePortfolioMetrics, formatConcentrationData } from "@/lib/calculations";
+import type { Portfolio } from "@shared/schema";
 
 const COLORS = ["hsl(215, 100%, 32%)", "hsl(158, 64%, 52%)", "hsl(0, 74%, 42%)", "hsl(45, 93%, 47%)", "hsl(270, 75%, 60%)"];
 
 export function Analytics() {
-  const [issuerData] = useState([
-    { name: "BTG Pactual", value: 25, color: COLORS[0] },
-    { name: "XP Securitizadora", value: 20, color: COLORS[1] },
-    { name: "Vale S.A.", value: 18, color: COLORS[2] },
-    { name: "Banco do Brasil", value: 15, color: COLORS[3] },
-    { name: "Outros", value: 22, color: COLORS[4] },
-  ]);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
 
-  const [assetTypeData] = useState([
-    { name: "CRI", value: 35 },
-    { name: "CDB", value: 25 },
-    { name: "Debêntures", value: 15 },
-    { name: "LCA", value: 10 },
-    { name: "CRA", value: 8 },
-    { name: "Fundos", value: 7 },
-  ]);
+  const { data: portfolios } = useQuery<Portfolio[]>({
+    queryKey: ["/api/portfolios"],
+  });
 
-  const [indexerData] = useState([
-    { name: "CDI", value: 60 },
-    { name: "IPCA", value: 25 },
-    { name: "SELIC", value: 10 },
-    { name: "PREFIXADO", value: 5 },
-  ]);
+  const { data: portfolioAssets } = useQuery({
+    queryKey: ["/api/portfolios", selectedPortfolioId, "assets"],
+    queryFn: async () => {
+      const response = await fetch(`/api/portfolios/${selectedPortfolioId}/assets`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch portfolio assets");
+      return response.json();
+    },
+    enabled: !!selectedPortfolioId,
+  });
 
-  const [couponData] = useState([
-    { month: "Jan", value: 2500 },
-    { month: "Fev", value: 2800 },
-    { month: "Mar", value: 2600 },
-    { month: "Abr", value: 2900 },
-    { month: "Mai", value: 3100 },
-    { month: "Jun", value: 2700 },
-    { month: "Jul", value: 2850 },
-    { month: "Ago", value: 3200 },
-    { month: "Set", value: 2950 },
-    { month: "Out", value: 3300 },
-    { month: "Nov", value: 3100 },
-    { month: "Dez", value: 3400 },
-  ]);
+  const portfolioMetrics = portfolioAssets ? calculatePortfolioMetrics(
+    portfolioAssets.map((pa: any) => ({
+      asset: pa.asset,
+      quantity: parseFloat(pa.quantity),
+      value: parseFloat(pa.value),
+    }))
+  ) : null;
 
-  const concentrationData = {
-    issuers: [
-      { name: "BTG Pactual", percentage: 25 },
-      { name: "XP Securitizadora", percentage: 20 },
-      { name: "Vale S.A.", percentage: 18 },
-    ],
-    sectors: [
-      { name: "Financeiro", percentage: 45 },
-      { name: "Imobiliário", percentage: 30 },
-      { name: "Industrial", percentage: 25 },
-    ],
-    indexers: [
-      { name: "CDI", percentage: 60 },
-      { name: "IPCA", percentage: 40 },
-    ],
-  };
+  const issuerData = portfolioMetrics ? formatConcentrationData(portfolioMetrics.concentrationByIssuer).map((item, index) => ({
+    name: item.name,
+    value: item.percentage,
+    color: COLORS[index % COLORS.length]
+  })) : [];
+
+  const assetTypeData = portfolioAssets ? 
+    Object.entries(
+      portfolioAssets.reduce((acc: Record<string, number>, pa: any) => {
+        const type = pa.asset.type;
+        const weight = portfolioMetrics ? (parseFloat(pa.value) / portfolioMetrics.totalValue) * 100 : 0;
+        acc[type] = (acc[type] || 0) + weight;
+        return acc;
+      }, {})
+    ).map(([name, value]) => ({ name, value: Math.round(Number(value)) })) : [];
+
+  const indexerData = portfolioMetrics ? formatConcentrationData(portfolioMetrics.concentrationByIndexer).map(item => ({
+    name: item.name,
+    value: Math.round(item.percentage)
+  })) : [];
+
+  const couponData = portfolioMetrics ? portfolioMetrics.monthlyCoupons.map((value, index) => ({
+    month: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][index],
+    value: Math.round(value)
+  })) : [];
+
+  const concentrationData = portfolioMetrics ? {
+    issuers: formatConcentrationData(portfolioMetrics.concentrationByIssuer).slice(0, 5),
+    sectors: formatConcentrationData(portfolioMetrics.concentrationBySector).slice(0, 5),
+    indexers: formatConcentrationData(portfolioMetrics.concentrationByIndexer)
+  } : { issuers: [], sectors: [], indexers: [] };
 
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
     const RADIAN = Math.PI / 180;
@@ -102,14 +108,80 @@ export function Analytics() {
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-neutral-900">Análises e Visualizações</h2>
         <p className="mt-1 text-sm text-neutral-600">Visualize a distribuição e performance das carteiras</p>
+        
+        {/* Portfolio Selection */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Selecionar Carteira para Análise
+          </label>
+          <Select value={selectedPortfolioId || ""} onValueChange={setSelectedPortfolioId}>
+            <SelectTrigger className="w-72">
+              <SelectValue placeholder="Escolha uma carteira..." />
+            </SelectTrigger>
+            <SelectContent>
+              {portfolios?.map((portfolio) => (
+                <SelectItem key={portfolio.id} value={portfolio.id.toString()}>
+                  {portfolio.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Distribution by Issuer */}
+      {!selectedPortfolioId ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Distribuição por Emissor</CardTitle>
+          <CardContent className="p-8 text-center">
+            <p className="text-neutral-500 text-lg">
+              Selecione uma carteira para visualizar as análises detalhadas
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Portfolio Summary */}
+          {portfolioMetrics && (
+            <div className="mb-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resumo da Carteira</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">{portfolioMetrics.totalAssets}</div>
+                      <div className="text-sm text-neutral-600">Total de Ativos</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-secondary">
+                        R$ {portfolioMetrics.totalValue.toLocaleString('pt-BR')}
+                      </div>
+                      <div className="text-sm text-neutral-600">Valor Total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-amber-600">
+                        {portfolioMetrics.weightedRate.toFixed(2)}%
+                      </div>
+                      <div className="text-sm text-neutral-600">Taxa Média Ponderada</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-emerald-600">
+                        R$ {portfolioMetrics.totalCommission.toLocaleString('pt-BR')}
+                      </div>
+                      <div className="text-sm text-neutral-600">Comissão Total</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Distribution by Issuer */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Distribuição por Emissor</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -256,6 +328,8 @@ export function Analytics() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }
