@@ -739,40 +739,33 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {(() => {
-                              if (!asset.maturityDate) return '-';
-                              const date = new Date(asset.maturityDate);
-                              return isNaN(date.getTime()) ? '-' : date.toLocaleDateString('pt-BR');
-                            })()}
+                            {asset.maturityDate ? 
+                              new Date(asset.maturityDate).toLocaleDateString('pt-BR') : 
+                              '-'
+                            }
                           </TableCell>
                           <TableCell>
-                            {(() => {
-                              if (!asset.unitPrice && !asset.minValue) return '-';
-                              
-                              const price = asset.unitPrice || asset.minValue;
-                              if (!price || price === 'null' || price === '') return '-';
-                              
-                              // Convert string to number properly
-                              const numericPrice = parseFloat(price);
-                              
-                              if (isNaN(numericPrice) || numericPrice <= 0) return '-';
-                              
-                              return `R$ ${numericPrice.toLocaleString('pt-BR', { 
+                            {asset.unitPrice ? 
+                              `R$ ${parseFloat(asset.unitPrice).toLocaleString('pt-BR', { 
                                 minimumFractionDigits: 2, 
                                 maximumFractionDigits: 2 
-                              })}`;
-                            })()}
+                              })}` : 
+                              (asset.minValue ? 
+                                `R$ ${parseFloat(asset.minValue).toLocaleString('pt-BR', { 
+                                  minimumFractionDigits: 2, 
+                                  maximumFractionDigits: 2 
+                                })}` : 
+                                '-'
+                              )
+                            }
                           </TableCell>
                           <TableCell>{asset.frequency || '-'}</TableCell>
                           <TableCell>{asset.couponMonths || '-'}</TableCell>
                           <TableCell>
-                            {(() => {
-                              if (!asset.remPercentage) return '-';
-                              const numericValue = typeof asset.remPercentage === 'string' ? 
-                                parseFloat(asset.remPercentage.replace(/[^\d.,]/g, '').replace(',', '.')) : 
-                                parseFloat(asset.remPercentage);
-                              return isNaN(numericValue) ? '-' : `${numericValue.toFixed(2)}%`;
-                            })()}
+                            {asset.remPercentage ? 
+                              `${parseFloat(asset.remPercentage).toFixed(2)}%` : 
+                              '-'
+                            }
                           </TableCell>
                           <TableCell>
                             {isSelected ? (
@@ -865,15 +858,13 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Data dos Dados</Label>
                         <div className="font-medium">
-                          {(() => {
-                            const dateToFormat = selectedAssetForDetail.importedAt || selectedAssetForDetail.createdAt;
-                            if (!dateToFormat) return 'Data não disponível';
-                            
-                            const date = new Date(dateToFormat);
-                            if (isNaN(date.getTime())) return 'Data inválida';
-                            
-                            return date.toLocaleDateString('pt-BR');
-                          })()}
+                          {selectedAssetForDetail.importedAt ? 
+                            new Date(selectedAssetForDetail.importedAt).toLocaleDateString('pt-BR') : 
+                            (selectedAssetForDetail.createdAt ? 
+                              new Date(selectedAssetForDetail.createdAt).toLocaleDateString('pt-BR') : 
+                              'Data não disponível'
+                            )
+                          }
                         </div>
                       </div>
                     </div>
