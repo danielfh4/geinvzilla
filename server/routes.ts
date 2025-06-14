@@ -480,6 +480,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User management routes (admin only)
+  app.get("/api/users", requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users.map(user => ({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      })));
+    } catch (error) {
+      console.error("Get users error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/users", requireAdmin, async (req, res) => {
+    try {
+      const userValidation = insertUserSchema.safeParse(req.body);
+      if (!userValidation.success) {
+        return res.status(400).json({ message: "Invalid user data", errors: userValidation.error.errors });
+      }
+      
+      const newUser = await storage.createUser(userValidation.data);
+      res.status(201).json({
+        id: newUser.id,
+        username: newUser.username,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        isActive: newUser.isActive,
+        createdAt: newUser.createdAt
+      });
+    } catch (error) {
+      console.error("Create user error:", error);
+      if (error.code === '23505') { // Unique constraint violation
+        res.status(409).json({ message: "Username already exists" });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  });
+
+  app.put("/api/users/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const updatedUser = await storage.updateUser(id, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        isActive: updatedUser.isActive,
+        updatedAt: updatedUser.updatedAt
+      });
+    } catch (error) {
+      console.error("Update user error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (id === req.user?.id) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Economic parameters
   app.get("/api/parameters", requireAuth, async (req, res) => {
     try {
@@ -488,6 +580,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get parameters error:", error);
       res.status(500).json({ message: "Failed to fetch parameters" });
+    }
+  });
+
+  app.put("/api/parameters/:name", requireAdmin, async (req, res) => {
+    try {
+      const { name } = req.params;
+      const { value } = req.body;
+      
+      if (typeof value !== 'number') {
+        return res.status(400).json({ message: "Value must be a number" });
+      }
+      
+      const parameter = await storage.updateEconomicParameter(name, value);
+      res.json(parameter);
+    } catch (error) {
+      console.error("Update parameter error:", error);
+      res.status(500).json({ message: "Failed to update parameter" });
     }
   });
 

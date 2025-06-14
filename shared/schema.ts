@@ -8,7 +8,10 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role").notNull().default("user"), // 'admin' or 'user'
   name: text("name").notNull(),
+  email: text("email"),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const assets = pgTable("assets", {
@@ -76,6 +79,7 @@ export const uploads = pgTable("uploads", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertAssetSchema = createInsertSchema(assets).omit({

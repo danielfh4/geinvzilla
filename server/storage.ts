@@ -34,6 +34,9 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
   
   // Asset operations
   getAllAssets(): Promise<Asset[]>;
@@ -92,8 +95,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(user).returning();
+    const hashedPassword = await bcrypt.hash(user.password, 10);
+    const result = await db.insert(users).values({ ...user, password: hashedPassword }).returning();
     return result[0];
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(users.name);
+  }
+
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    const updateData = { ...user };
+    if (user.password) {
+      updateData.password = await bcrypt.hash(user.password, 10);
+    }
+    updateData.updatedAt = new Date();
+    
+    const result = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db.update(users)
+      .set({ isActive: false })
+      .where(eq(users.id, id));
+    return result.rowCount > 0;
   }
 
   async getAllAssets(): Promise<Asset[]> {
