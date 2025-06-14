@@ -22,7 +22,7 @@ function AssetHistoryChart({ assetCode }: { assetCode: string }) {
     queryKey: ["/api/assets", assetCode, "history"],
     queryFn: async () => {
       try {
-        const response = await apiRequest(`/api/assets/${assetCode}/history`);
+        const response = await apiRequest("GET", `/api/assets/${assetCode}/history`);
         return response;
       } catch (error) {
         console.error('Error fetching asset history:', error);
