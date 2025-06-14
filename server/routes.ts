@@ -820,13 +820,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const puValue = findColumnValue([
                 'PU', 'pu', 'Pu', 'PRECO UNITARIO', 'Preco Unitario', 'preco_unitario',
                 'UNIT PRICE', 'Unit Price', 'unit_price', 'VALOR UNITARIO', 'Valor Unitario', 'valor_unitario'
-              ]) || '1000';
+              ]);
+              if (!puValue || puValue === '') return '1000.00';
+              
+              let numericValue;
               if (typeof puValue === 'string') {
-                const numericValue = parseFloat(puValue.replace(',', '.')) || 1;
-                return numericValue < 100 ? numericValue * 1000 : numericValue;
+                // Remove any currency symbols and replace comma with dot
+                const cleanValue = puValue.replace(/[R$\s]/g, '').replace(',', '.');
+                numericValue = parseFloat(cleanValue);
+              } else {
+                numericValue = parseFloat(puValue);
               }
-              const numericValue = parseFloat(puValue) || 1;
-              return numericValue < 100 ? numericValue * 1000 : numericValue;
+              
+              // Ensure we have a valid number
+              if (isNaN(numericValue) || numericValue <= 0) {
+                return '1000.00';
+              }
+              
+              // Return with 2 decimal places
+              return numericValue.toFixed(2);
             })()),
           };
 

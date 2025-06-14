@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ export const users = pgTable("users", {
 export const assets = pgTable("assets", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  code: text("code").notNull().unique(),
+  code: text("code").notNull(), // Removed unique constraint to allow historical versions
   type: text("type").notNull(), // CRI, CRA, DEB, LCA, CDB, FUND
   issuer: text("issuer").notNull(),
   sector: text("sector"),

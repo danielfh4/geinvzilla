@@ -333,19 +333,32 @@ export class DatabaseStorage implements IStorage {
     
     const createdAssets: Asset[] = [];
     
-    // Insert assets one by one to handle duplicates gracefully
+    // Insert assets allowing historical versions
     for (const asset of assetsList) {
       try {
+        // Check if this exact version already exists (same code + importedAt)
+        const existingAsset = await db.select()
+          .from(assets)
+          .where(
+            and(
+              eq(assets.code, asset.code),
+              eq(assets.importedAt, asset.importedAt || new Date())
+            )
+          )
+          .limit(1);
+        
+        if (existingAsset.length > 0) {
+          console.log(`Asset with code ${asset.code} for date ${asset.importedAt} already exists, skipping...`);
+          continue;
+        }
+        
+        // Insert new historical version
         const result = await db.insert(assets).values(asset).returning();
         if (result.length > 0) {
           createdAssets.push(result[0]);
+          console.log(`Asset ${asset.code} created for date ${asset.importedAt}`);
         }
       } catch (error: any) {
-        // Skip duplicates (constraint violation)
-        if (error.code === '23505') {
-          console.log(`Asset with code ${asset.code} already exists, skipping...`);
-          continue;
-        }
         console.error(`Error inserting asset ${asset.code}:`, error);
       }
     }
