@@ -61,7 +61,7 @@ export function Reports() {
     return months.map((month, index) => {
       // Calculate portfolio return based on weighted rates
       let portfolioReturn = 0;
-      selectedAssets.forEach(({ asset, value }) => {
+      selectedAssets.forEach(({ asset, value }: { asset: any, value: number }) => {
         const assetWeight = value / portfolioMetrics.totalValue;
         let assetRate = parseFloat(asset.rate?.toString() || '0');
         
