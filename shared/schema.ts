@@ -14,11 +14,11 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Base asset information (constant data)
+// Combined asset with historical data for API responses
 export const assets = pgTable("assets", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  code: text("code").notNull().unique(), // Asset code is unique
+  code: text("code").notNull(), 
   type: text("type").notNull(), // CRI, CRA, DEB, LCA, CDB, FUND
   issuer: text("issuer").notNull(),
   sector: text("sector"),
@@ -27,6 +27,12 @@ export const assets = pgTable("assets", {
   frequency: text("frequency"), // monthly, quarterly, semiannual, annual
   rating: text("rating"), // Asset rating (AAA, AA+, etc.)
   couponMonths: text("coupon_months"), // Months when coupons are paid
+  // Historical fields from joined data
+  rate: text("rate"),
+  unitPrice: text("unit_price"),
+  minValue: text("min_value"),
+  remPercentage: text("rem_percentage"),
+  importedAt: timestamp("imported_at"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

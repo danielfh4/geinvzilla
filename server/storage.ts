@@ -135,31 +135,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllAssets(): Promise<Asset[]> {
-    // Use a window function to get the most recent version of each asset
-    const latestAssets = await db.execute(sql`
-      WITH RankedAssets AS (
-        SELECT *,
-               ROW_NUMBER() OVER (
-                 PARTITION BY code 
-                 ORDER BY 
-                   imported_at DESC NULLS LAST, 
-                   created_at DESC,
-                   id DESC
-               ) as rn
-        FROM assets 
-        WHERE is_active = true
-      )
-      SELECT id, name, code, type, issuer, sector, rate, indexer, 
-             maturity_date as "maturityDate", min_value as "minValue", 
-             imported_at as "importedAt", frequency, rem_percentage as "remPercentage", 
-             rating, coupon_months as "couponMonths", unit_price as "unitPrice", 
-             is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
-      FROM RankedAssets 
-      WHERE rn = 1
-      ORDER BY imported_at DESC NULLS LAST, created_at DESC
+    // Get unique assets with their latest historical data
+    const assetsWithHistory = await db.execute(sql`
+      SELECT 
+        au.id, au.name, au.code, au.type, au.issuer, au.sector, au.indexer,
+        au.maturity_date as "maturityDate", au.frequency, au.rating, 
+        au.coupon_months as "couponMonths", au.is_active as "isActive", 
+        au.created_at as "createdAt", au.updated_at as "updatedAt",
+        ah.rate, ah.unit_price as "unitPrice", ah.min_value as "minValue", 
+        ah.rem_percentage as "remPercentage", ah.imported_at as "importedAt"
+      FROM assets_unique au
+      LEFT JOIN LATERAL (
+        SELECT rate, unit_price, min_value, rem_percentage, imported_at
+        FROM asset_histories 
+        WHERE asset_code = au.code 
+        ORDER BY imported_at DESC NULLS LAST, created_at DESC
+        LIMIT 1
+      ) ah ON true
+      WHERE au.is_active = true
+      ORDER BY au.created_at DESC
     `);
     
-    return latestAssets.rows as Asset[];
+    return assetsWithHistory.rows as Asset[];
   }
 
   async getAssetById(id: number): Promise<Asset | undefined> {
@@ -364,33 +361,85 @@ export class DatabaseStorage implements IStorage {
     
     const createdAssets: Asset[] = [];
     
-    // Insert assets allowing historical versions
     for (const asset of assetsList) {
       try {
-        // Check if this exact version already exists (same code + importedAt)
-        const existingAsset = await db.select()
-          .from(assets)
-          .where(
-            and(
-              eq(assets.code, asset.code),
-              eq(assets.importedAt, asset.importedAt || new Date())
-            )
-          )
-          .limit(1);
+        // Extract historical data from asset
+        const { rate, unitPrice, minValue, remPercentage, importedAt, ...baseAsset } = asset as any;
         
-        if (existingAsset.length > 0) {
-          console.log(`Asset with code ${asset.code} for date ${asset.importedAt} already exists, skipping...`);
-          continue;
+        // Check if unique asset exists using raw SQL
+        const existingUnique = await pool.query(
+          'SELECT id FROM assets_unique WHERE code = $1',
+          [baseAsset.code]
+        );
+        
+        let assetId: number;
+        
+        if (existingUnique.rows.length === 0) {
+          // Insert new unique asset
+          const uniqueResult = await pool.query(
+            `INSERT INTO assets_unique (name, code, type, issuer, sector, indexer, maturity_date, frequency, rating, coupon_months, is_active)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             RETURNING id`,
+            [
+              baseAsset.name,
+              baseAsset.code,
+              baseAsset.type,
+              baseAsset.issuer,
+              baseAsset.sector || null,
+              baseAsset.indexer,
+              baseAsset.maturityDate || null,
+              baseAsset.frequency || null,
+              baseAsset.rating || null,
+              baseAsset.couponMonths || null,
+              baseAsset.isActive ?? true
+            ]
+          );
+          assetId = uniqueResult.rows[0].id;
+        } else {
+          assetId = existingUnique.rows[0].id;
         }
         
-        // Insert new historical version
-        const result = await db.insert(assets).values(asset).returning();
-        if (result.length > 0) {
-          createdAssets.push(result[0]);
-          console.log(`Asset ${asset.code} created for date ${asset.importedAt}`);
+        // Check if this historical version already exists
+        const importDate = importedAt || new Date();
+        const existingHistory = await pool.query(
+          'SELECT id FROM asset_histories WHERE asset_code = $1 AND imported_at = $2',
+          [baseAsset.code, importDate]
+        );
+        
+        if (existingHistory.rows.length === 0) {
+          // Insert historical data
+          await pool.query(
+            `INSERT INTO asset_histories (asset_code, rate, unit_price, min_value, rem_percentage, imported_at)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              baseAsset.code,
+              rate || null,
+              unitPrice || null,
+              minValue || null,
+              remPercentage || null,
+              importDate
+            ]
+          );
         }
+        
+        // Return combined asset data
+        const combinedAsset = {
+          id: assetId,
+          ...baseAsset,
+          rate,
+          unitPrice,
+          minValue,
+          remPercentage,
+          importedAt: importedAt || new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        createdAssets.push(combinedAsset as Asset);
+        console.log(`Asset ${baseAsset.code} processed successfully`);
+        
       } catch (error: any) {
-        console.error(`Error inserting asset ${asset.code}:`, error);
+        console.error(`Error processing asset ${asset.code}:`, error);
       }
     }
     
