@@ -23,7 +23,7 @@ export function Overview() {
     if (!portfolios || portfolios.length === 0) {
       return {
         activePortfolios: 0,
-        totalAssets: assets?.length || 0,
+        totalAssets: (assets as any[])?.length || 0,
         averageRate: 0,
         totalVolume: 0,
       };
@@ -60,7 +60,7 @@ export function Overview() {
 
     return {
       activePortfolios: portfolios.length,
-      totalAssets: assets?.length || 0,
+      totalAssets: (assets as any[])?.length || 0,
       averageRate: totalValue > 0 ? totalWeightedRate / totalValue : 0,
       totalVolume: totalValue,
     };
@@ -73,8 +73,8 @@ export function Overview() {
   });
 
   const displayMetrics = metrics || {
-    activePortfolios: portfolios?.length || 0,
-    totalAssets: assets?.length || 0,
+    activePortfolios: (portfolios as any[])?.length || 0,
+    totalAssets: (assets as any[])?.length || 0,
     averageRate: 0,
     totalVolume: 0,
   };

@@ -388,7 +388,7 @@ export function Analytics() {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedAssets.map((selectedAsset, index) => {
+                    {selectedAssets.map((selectedAsset: any, index: number) => {
                       const percentage = portfolioMetrics ? (selectedAsset.value / portfolioMetrics.totalValue) * 100 : 0;
                       return (
                         <tr key={index} className="border-b hover:bg-gray-50">
@@ -424,7 +424,7 @@ export function Analytics() {
                     <tr className="border-t-2 font-semibold bg-gray-50">
                       <td className="p-3">Total da Carteira</td>
                       <td className="text-right p-3">
-                        {selectedAssets.reduce((sum, asset) => sum + asset.quantity, 0).toLocaleString('pt-BR')}
+                        {selectedAssets.reduce((sum: number, asset: any) => sum + asset.quantity, 0).toLocaleString('pt-BR')}
                       </td>
                       <td className="text-right p-3">-</td>
                       <td className="text-right p-3">

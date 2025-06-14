@@ -52,8 +52,8 @@ export function Reports() {
     const portfolioMetrics = calculatePortfolioMetrics(selectedAssets, economicParameters);
     if (!portfolioMetrics) return [];
 
-    const cdiRate = economicParameters?.find((p: any) => p.name === 'CDI')?.value || 14.65;
-    const ipcaRate = economicParameters?.find((p: any) => p.name === 'IPCA')?.value || 4.62;
+    const cdiRate = (economicParameters as any[])?.find((p: any) => p.name === 'CDI')?.value || 14.65;
+    const ipcaRate = (economicParameters as any[])?.find((p: any) => p.name === 'IPCA')?.value || 4.62;
 
     // Generate monthly performance data for the last 12 months
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
