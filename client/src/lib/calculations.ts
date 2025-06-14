@@ -199,13 +199,24 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
     }
     
     // Parse coupon months - handle different formats like "03 E 09" or "03,09" or "TODOS"
+    // Special handling for "A PARTIR DE" format - ignore text before comma
     let couponMonths: number[] = [];
-    if (asset.couponMonths.toUpperCase() === 'TODOS') {
+    let monthsText = asset.couponMonths;
+    
+    // If contains "A PARTIR DE", only use text after comma
+    if (monthsText.toUpperCase().includes('A PARTIR DE')) {
+      const commaIndex = monthsText.indexOf(',');
+      if (commaIndex !== -1) {
+        monthsText = monthsText.substring(commaIndex + 1).trim();
+      }
+    }
+    
+    if (monthsText.toUpperCase() === 'TODOS') {
       // All months for monthly payments
       couponMonths = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     } else {
       // Split by comma, "E", or space and parse numbers
-      couponMonths = asset.couponMonths
+      couponMonths = monthsText
         .replace(/\sE\s/gi, ',')
         .split(/[,\s]+/)
         .filter(m => m.trim())
