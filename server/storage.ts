@@ -139,7 +139,13 @@ export class DatabaseStorage implements IStorage {
     const latestAssets = await db.execute(sql`
       WITH RankedAssets AS (
         SELECT *,
-               ROW_NUMBER() OVER (PARTITION BY code ORDER BY imported_at DESC NULLS LAST, created_at DESC) as rn
+               ROW_NUMBER() OVER (
+                 PARTITION BY code 
+                 ORDER BY 
+                   imported_at DESC NULLS LAST, 
+                   created_at DESC,
+                   id DESC
+               ) as rn
         FROM assets 
         WHERE is_active = true
       )
@@ -150,7 +156,7 @@ export class DatabaseStorage implements IStorage {
              is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
       FROM RankedAssets 
       WHERE rn = 1
-      ORDER BY created_at DESC
+      ORDER BY imported_at DESC NULLS LAST, created_at DESC
     `);
     
     return latestAssets.rows as Asset[];
