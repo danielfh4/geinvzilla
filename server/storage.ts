@@ -189,54 +189,95 @@ export class DatabaseStorage implements IStorage {
     couponMonth?: string;
     couponMonths?: number[];
   }): Promise<Asset[]> {
-    let query = db.select().from(assets).where(eq(assets.isActive, true));
-    
-    const conditions = [];
+    // Build WHERE conditions for the new structure
+    const whereConditions: string[] = ['au.is_active = true'];
+    const params: any[] = [];
+    let paramIndex = 1;
     
     if (filters.type) {
-      conditions.push(eq(assets.type, filters.type));
+      whereConditions.push(`au.type = $${paramIndex}`);
+      params.push(filters.type);
+      paramIndex++;
     }
     
     if (filters.indexer) {
-      conditions.push(eq(assets.indexer, filters.indexer));
+      whereConditions.push(`au.indexer = $${paramIndex}`);
+      params.push(filters.indexer);
+      paramIndex++;
     }
     
     if (filters.minRate) {
-      conditions.push(sql`CAST(${assets.rate} AS DECIMAL) >= ${filters.minRate}`);
+      whereConditions.push(`CAST(REPLACE(ah.rate, '%', '') AS DECIMAL) >= $${paramIndex}`);
+      params.push(filters.minRate);
+      paramIndex++;
     }
     
     if (filters.maxRate) {
-      conditions.push(sql`CAST(${assets.rate} AS DECIMAL) <= ${filters.maxRate}`);
+      whereConditions.push(`CAST(REPLACE(ah.rate, '%', '') AS DECIMAL) <= $${paramIndex}`);
+      params.push(filters.maxRate);
+      paramIndex++;
     }
     
     if (filters.minValue) {
-      conditions.push(sql`${assets.minValue} >= ${filters.minValue}`);
+      whereConditions.push(`ah.min_value >= $${paramIndex}`);
+      params.push(filters.minValue);
+      paramIndex++;
     }
     
     if (filters.maxValue) {
-      conditions.push(sql`${assets.minValue} <= ${filters.maxValue}`);
+      whereConditions.push(`ah.min_value <= $${paramIndex}`);
+      params.push(filters.maxValue);
+      paramIndex++;
     }
     
     if (filters.issuer) {
-      conditions.push(sql`${assets.issuer} ILIKE ${'%' + filters.issuer + '%'}`);
+      whereConditions.push(`au.issuer ILIKE $${paramIndex}`);
+      params.push(`%${filters.issuer}%`);
+      paramIndex++;
     }
     
     if (filters.couponMonth) {
-      conditions.push(sql`${assets.couponMonths} ILIKE ${'%' + filters.couponMonth + '%'}`);
+      whereConditions.push(`au.coupon_months ILIKE $${paramIndex}`);
+      params.push(`%${filters.couponMonth}%`);
+      paramIndex++;
     }
     
     if (filters.couponMonths && filters.couponMonths.length > 0) {
-      const monthConditions = filters.couponMonths.map(month => 
-        sql`${assets.couponMonths} ILIKE ${'%' + month.toString().padStart(2, '0') + '%'}`
-      );
-      conditions.push(sql`(${sql.join(monthConditions, sql` OR `)})`);
+      const monthConditions = filters.couponMonths.map(() => {
+        const condition = `au.coupon_months ILIKE $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      whereConditions.push(`(${monthConditions.join(' OR ')})`);
+      filters.couponMonths.forEach(month => {
+        params.push(`%${month.toString().padStart(2, '0')}%`);
+      });
     }
     
-    if (conditions.length > 0) {
-      return await (db.select().from(assets) as any).where(and(...conditions)).orderBy(desc(assets.createdAt));
-    }
+    const whereClause = whereConditions.join(' AND ');
     
-    return await db.select().from(assets).orderBy(desc(assets.createdAt));
+    // Query with JOIN between unique assets and latest historical data
+    const result = await pool.query(`
+      SELECT 
+        au.id, au.name, au.code, au.type, au.issuer, au.sector, au.indexer,
+        au.maturity_date as "maturityDate", au.frequency, au.rating, 
+        au.coupon_months as "couponMonths", au.is_active as "isActive", 
+        au.created_at as "createdAt", au.updated_at as "updatedAt",
+        ah.rate, ah.unit_price as "unitPrice", ah.min_value as "minValue", 
+        ah.rem_percentage as "remPercentage", ah.imported_at as "importedAt"
+      FROM assets_unique au
+      LEFT JOIN LATERAL (
+        SELECT rate, unit_price, min_value, rem_percentage, imported_at
+        FROM asset_histories 
+        WHERE asset_code = au.code 
+        ORDER BY imported_at DESC NULLS LAST, created_at DESC
+        LIMIT 1
+      ) ah ON true
+      WHERE ${whereClause}
+      ORDER BY au.created_at DESC
+    `, params);
+    
+    return result.rows as Asset[];
   }
 
   async getUserPortfolios(userId: number): Promise<Portfolio[]> {
