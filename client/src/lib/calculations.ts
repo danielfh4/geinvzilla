@@ -15,6 +15,7 @@ export interface PortfolioMetrics {
   concentrationBySector: Record<string, number>;
   concentrationByIndexer: Record<string, number>;
   monthlyCoupons: number[];
+  monthlyCouponDetails: MonthlyCouponData[];
   totalCommission: number;
 }
 
@@ -29,6 +30,7 @@ export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[], econo
       concentrationBySector: {},
       concentrationByIndexer: {},
       monthlyCoupons: new Array(12).fill(0),
+      monthlyCouponDetails: new Array(12).fill(null).map(() => ({ total: 0, details: [] })),
       totalCommission: 0,
     };
   }
@@ -113,7 +115,8 @@ export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[], econo
   const cdiRate = economicParams?.find((p: any) => p.name === 'CDI')?.value || 14.65;
   
   // Calculate monthly coupons projection
-  const monthlyCoupons = calculateMonthlyCoupons(selectedAssets, cdiRate);
+  const couponData = calculateMonthlyCoupons(selectedAssets, cdiRate);
+  const monthlyCoupons = couponData.totals;
 
   return {
     totalAssets,
@@ -124,6 +127,7 @@ export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[], econo
     concentrationBySector,
     concentrationByIndexer,
     monthlyCoupons,
+    monthlyCouponDetails: couponData.details,
     totalCommission,
   };
 }
@@ -168,14 +172,26 @@ function extractNumericRate(rateString: string): number {
   return 0;
 }
 
-function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.65): number[] {
+interface CouponDetail {
+  assetName: string;
+  value: number;
+  frequency: string;
+}
+
+interface MonthlyCouponData {
+  total: number;
+  details: CouponDetail[];
+}
+
+function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.65): { totals: number[], details: MonthlyCouponData[] } {
   const monthlyCoupons = new Array(12).fill(0);
+  const monthlyDetails: MonthlyCouponData[] = new Array(12).fill(null).map(() => ({ total: 0, details: [] }));
   
   console.log("Calculating coupons for", selectedAssets.length, "assets with CDI rate:", cdiRate);
   
   if (selectedAssets.length === 0) {
     console.log("No assets provided for coupon calculation");
-    return monthlyCoupons;
+    return { totals: monthlyCoupons, details: monthlyDetails };
   }
   
   selectedAssets.forEach(({ asset, quantity, value }) => {
@@ -250,6 +266,12 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
       // Monthly coupons occur every month
       for (let i = 0; i < 12; i++) {
         monthlyCoupons[i] += couponValue;
+        monthlyDetails[i].total += couponValue;
+        monthlyDetails[i].details.push({
+          assetName: asset.name,
+          value: couponValue,
+          frequency: asset.frequency || 'N/A'
+        });
       }
     } else if (isQuarterly) {
       couponValue = annualCoupon / 4;
@@ -257,6 +279,12 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
       couponMonths.forEach(month => {
         if (month >= 0 && month < 12) {
           monthlyCoupons[month] += couponValue;
+          monthlyDetails[month].total += couponValue;
+          monthlyDetails[month].details.push({
+            assetName: asset.name,
+            value: couponValue,
+            frequency: asset.frequency
+          });
         }
       });
     } else if (isSemiannual) {
@@ -265,6 +293,12 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
       couponMonths.forEach(month => {
         if (month >= 0 && month < 12) {
           monthlyCoupons[month] += couponValue;
+          monthlyDetails[month].total += couponValue;
+          monthlyDetails[month].details.push({
+            assetName: asset.name,
+            value: couponValue,
+            frequency: asset.frequency
+          });
         }
       });
     } else if (isAnnual) {
@@ -273,6 +307,12 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
       couponMonths.forEach(month => {
         if (month >= 0 && month < 12) {
           monthlyCoupons[month] += couponValue;
+          monthlyDetails[month].total += couponValue;
+          monthlyDetails[month].details.push({
+            assetName: asset.name,
+            value: couponValue,
+            frequency: asset.frequency
+          });
         }
       });
     }
@@ -280,7 +320,7 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
     console.log("Coupon value per payment:", couponValue, "applied to months:", couponMonths);
   });
   
-  return monthlyCoupons;
+  return { totals: monthlyCoupons, details: monthlyDetails };
 }
 
 export function formatConcentrationData(concentration: Record<string, number>) {
