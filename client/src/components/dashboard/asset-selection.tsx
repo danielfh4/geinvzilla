@@ -543,7 +543,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {assets?.map((asset: Asset) => {
+                    {sortedAssets?.map((asset: Asset) => {
                       const isSelected = selectedAssets.some(sa => sa.asset.id === asset.id);
                       const selectedAsset = selectedAssets.find(sa => sa.asset.id === asset.id);
                       

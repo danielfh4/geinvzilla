@@ -10,15 +10,93 @@ import { FileText, Download, Eye, Trash2, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { calculatePortfolioMetrics } from "@/lib/calculations";
+import type { Portfolio } from "@shared/schema";
 
 export function Reports() {
   const { toast } = useToast();
   const [selectedPortfolio, setSelectedPortfolio] = useState("");
   const [selectedFormat, setSelectedFormat] = useState("pdf");
 
-  const { data: portfolios } = useQuery({
+  const { data: portfolios } = useQuery<Portfolio[]>({
     queryKey: ["/api/portfolios"],
   });
+
+  const { data: portfolioAssets } = useQuery({
+    queryKey: ["/api/portfolios", selectedPortfolio, "assets"],
+    queryFn: async () => {
+      const response = await fetch(`/api/portfolios/${selectedPortfolio}/assets`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch portfolio assets");
+      return response.json();
+    },
+    enabled: !!selectedPortfolio,
+  });
+
+  const { data: economicParameters } = useQuery({
+    queryKey: ["/api/parameters"],
+  });
+
+  // Calculate portfolio performance data for the last 12 months
+  const generatePerformanceData = () => {
+    if (!portfolioAssets || !economicParameters) return [];
+
+    const selectedAssets = portfolioAssets.map((pa: any) => ({
+      asset: pa.asset,
+      quantity: parseFloat(pa.quantity),
+      value: parseFloat(pa.value),
+    }));
+
+    const portfolioMetrics = calculatePortfolioMetrics(selectedAssets, economicParameters);
+    if (!portfolioMetrics) return [];
+
+    const cdiRate = economicParameters?.find((p: any) => p.name === 'CDI')?.value || 14.65;
+    const ipcaRate = economicParameters?.find((p: any) => p.name === 'IPCA')?.value || 4.62;
+
+    // Generate monthly performance data for the last 12 months
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    return months.map((month, index) => {
+      // Calculate portfolio return based on weighted rates
+      let portfolioReturn = 0;
+      selectedAssets.forEach(({ asset, value }) => {
+        const assetWeight = value / portfolioMetrics.totalValue;
+        let assetRate = parseFloat(asset.rate?.toString() || '0');
+        
+        // Adjust rate based on indexer type
+        switch (asset.indexer?.toUpperCase()) {
+          case 'IPCA':
+            assetRate += ipcaRate;
+            break;
+          case '%CDI':
+            assetRate = (assetRate / 100) * cdiRate;
+            break;
+          case 'CDI+':
+            assetRate = cdiRate + assetRate;
+            break;
+          // PREFIXADA uses the rate as is
+        }
+        
+        portfolioReturn += assetWeight * (assetRate / 12); // Monthly return
+      });
+
+      const cdiMonthlyReturn = cdiRate / 12;
+      const cumulativePortfolio = Math.pow(1 + portfolioReturn / 100, index + 1) * 100;
+      const cumulativeCDI = Math.pow(1 + cdiMonthlyReturn / 100, index + 1) * 100;
+
+      return {
+        month,
+        portfolio: cumulativePortfolio,
+        cdi: cumulativeCDI,
+        portfolioMonthly: portfolioReturn,
+        cdiMonthly: cdiMonthlyReturn,
+      };
+    });
+  };
+
+  const performanceData = generatePerformanceData();
 
   // Mock data for generated reports
   const generatedReports = [
@@ -179,6 +257,46 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Performance Chart */}
+      {selectedPortfolio && performanceData.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Desempenho da Carteira vs CDI (12 meses)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={performanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: number, name: string) => [
+                    `${value.toFixed(2)}%`, 
+                    name === 'portfolio' ? 'Carteira' : 'CDI'
+                  ]}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="portfolio" 
+                  stroke="hsl(215, 100%, 32%)" 
+                  strokeWidth={3}
+                  name="Carteira"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="cdi" 
+                  stroke="hsl(158, 64%, 52%)" 
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  name="CDI"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Generated Reports History */}
       <Card>

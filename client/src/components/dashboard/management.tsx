@@ -92,6 +92,37 @@ export function Management() {
     },
   });
 
+  const clearAssetsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/assets/clear", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to clear assets");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Ativos removidos",
+        description: "Todos os ativos foram removidos com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolios"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao limpar ativos",
+        description: error.message || "Erro ao remover os ativos. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleFileUpload = (files: FileList | null, type: string) => {
     if (!files || files.length === 0) return;
     
@@ -259,19 +290,50 @@ export function Management() {
           <CardContent>
             <div className="space-y-4">
               <p className="text-sm text-neutral-600">
-                Limpe todos os dados da base de dados. Esta ação não pode ser desfeita.
+                Gerencie os dados da base. Estas ações não podem ser desfeitas.
               </p>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="destructive" 
-                    disabled={clearDatabaseMutation.isPending}
-                    className="w-full"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {clearDatabaseMutation.isPending ? "Limpando..." : "Limpar Toda a Base de Dados"}
-                  </Button>
-                </AlertDialogTrigger>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      disabled={clearAssetsMutation.isPending}
+                      className="w-full"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {clearAssetsMutation.isPending ? "Removendo..." : "Remover Apenas Ativos"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirmar Remoção de Ativos</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação irá remover permanentemente todos os ativos da base de dados, mantendo carteiras, usuários e parâmetros. Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => clearAssetsMutation.mutate()}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Sim, Remover Ativos
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      disabled={clearDatabaseMutation.isPending}
+                      className="w-full"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {clearDatabaseMutation.isPending ? "Limpando..." : "Limpar Toda a Base de Dados"}
+                    </Button>
+                  </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar Limpeza da Base de Dados</AlertDialogTitle>
@@ -291,6 +353,7 @@ export function Management() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              </div>
             </div>
           </CardContent>
         </Card>
