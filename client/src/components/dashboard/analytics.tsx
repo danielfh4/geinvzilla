@@ -31,12 +31,14 @@ export function Analytics() {
     queryKey: ["/api/parameters"],
   });
 
-  const portfolioMetrics = portfolioAssets ? calculatePortfolioMetrics(
-    portfolioAssets.map((pa: any) => ({
-      asset: pa.asset,
-      quantity: parseFloat(pa.quantity),
-      value: parseFloat(pa.value),
-    })),
+  const selectedAssets = portfolioAssets ? portfolioAssets.map((pa: any) => ({
+    asset: pa.asset,
+    quantity: parseFloat(pa.quantity),
+    value: parseFloat(pa.value),
+  })) : [];
+
+  const portfolioMetrics = selectedAssets.length > 0 ? calculatePortfolioMetrics(
+    selectedAssets,
     economicParameters
   ) : null;
 
