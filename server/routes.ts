@@ -517,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: newUser.isActive,
         createdAt: newUser.createdAt
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Create user error:", error);
       if (error.code === '23505') { // Unique constraint violation
         res.status(409).json({ message: "Username already exists" });
@@ -600,19 +600,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Initialize admin user if it doesn't exist
+  // Initialize admin user and default parameters
   async function initializeAdmin() {
     try {
       const adminUser = await storage.getUserByUsername("admin");
       if (!adminUser) {
-        const hashedPassword = await bcrypt.hash("admin123", 10);
         await storage.createUser({
           username: "admin",
-          password: hashedPassword,
+          password: "admin123",
           role: "admin",
-          name: "Administrator",
+          name: "Administrador",
         });
         console.log("Admin user created with username: admin, password: admin123");
+      }
+      
+      // Initialize default economic parameters
+      const defaultParams = [
+        { name: "CDI", value: 14.65, description: "Taxa CDI anual (%)" },
+        { name: "IPCA", value: 4.5, description: "IPCA dos últimos 12 meses (%)" },
+        { name: "SELIC", value: 13.75, description: "Taxa SELIC anual (%)" },
+      ];
+      
+      for (const param of defaultParams) {
+        try {
+          const existingParam = await storage.getEconomicParameter(param.name);
+          if (!existingParam) {
+            await storage.updateEconomicParameter(param.name, param.value);
+            console.log(`Created default parameter: ${param.name} = ${param.value}%`);
+          }
+        } catch (error: any) {
+          console.log(`Parameter ${param.name} initialization skipped:`, error.message);
+        }
       }
     } catch (error) {
       console.error("Failed to initialize admin user:", error);

@@ -27,12 +27,17 @@ export function Analytics() {
     enabled: !!selectedPortfolioId,
   });
 
+  const { data: economicParameters } = useQuery({
+    queryKey: ["/api/parameters"],
+  });
+
   const portfolioMetrics = portfolioAssets ? calculatePortfolioMetrics(
     portfolioAssets.map((pa: any) => ({
       asset: pa.asset,
       quantity: parseFloat(pa.quantity),
       value: parseFloat(pa.value),
-    }))
+    })),
+    economicParameters
   ) : null;
 
   const issuerData = portfolioMetrics ? formatConcentrationData(portfolioMetrics.concentrationByIssuer).map((item, index) => ({

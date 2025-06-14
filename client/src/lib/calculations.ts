@@ -18,7 +18,7 @@ export interface PortfolioMetrics {
   totalCommission: number;
 }
 
-export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[]): PortfolioMetrics {
+export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[], economicParams?: any): PortfolioMetrics {
   if (!selectedAssets || selectedAssets.length === 0) {
     return {
       totalAssets: 0,
@@ -109,8 +109,11 @@ export function calculatePortfolioMetrics(selectedAssets: SelectedAsset[]): Port
     }
   });
 
+  // Get CDI rate from economic parameters or use default
+  const cdiRate = economicParams?.find((p: any) => p.name === 'CDI')?.value || 14.65;
+  
   // Calculate monthly coupons projection
-  const monthlyCoupons = calculateMonthlyCoupons(selectedAssets);
+  const monthlyCoupons = calculateMonthlyCoupons(selectedAssets, cdiRate);
 
   return {
     totalAssets,

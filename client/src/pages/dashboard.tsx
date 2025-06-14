@@ -48,6 +48,8 @@ export default function DashboardPage() {
       analytics: "Análises",
       reports: "Relatórios",
       management: "Gestão de Dados",
+      users: "Gestão de Usuários",
+      parameters: "Parâmetros",
     };
     return titles[activeSection as keyof typeof titles] || "Dashboard";
   };
@@ -74,6 +76,10 @@ export default function DashboardPage() {
         return <Reports />;
       case "management":
         return user.role === "admin" ? <Management /> : <Overview />;
+      case "users":
+        return user.role === "admin" ? <UserManagement /> : <Overview />;
+      case "parameters":
+        return user.role === "admin" ? <ParameterManagement /> : <Overview />;
       default:
         return <Overview />;
     }
