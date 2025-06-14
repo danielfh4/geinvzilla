@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Save, Plus, Settings, X } from "lucide-react";
+import { Filter, Save, Plus, Settings, X, ChevronUp, ChevronDown } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { calculatePortfolioMetrics } from "@/lib/calculations";
@@ -38,6 +38,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<SelectedAsset[]>([]);
   const [portfolioName, setPortfolioName] = useState("");
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
 
   const { data: assets, isLoading } = useQuery({
     queryKey: ["/api/assets", filters],
@@ -219,6 +220,40 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
     });
   };
 
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedAssets = () => {
+    if (!assets || !sortConfig) return assets || [];
+    
+    return [...assets].sort((a, b) => {
+      let aValue: any = a[sortConfig.key as keyof Asset];
+      let bValue: any = b[sortConfig.key as keyof Asset];
+      
+      // Handle numeric fields
+      if (sortConfig.key === 'unitPrice' || sortConfig.key === 'rate') {
+        aValue = parseFloat(aValue?.toString() || '0');
+        bValue = parseFloat(bValue?.toString() || '0');
+      }
+      
+      // Handle string fields
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue?.toLowerCase() || '';
+      }
+      
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const sortedAssets = getSortedAssets();
   const portfolioMetrics = calculatePortfolioMetrics(selectedAssets);
 
   return (
@@ -340,6 +375,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
         )}
 
         {/* Filters */}
+        {showAdvancedFilters && (
         <Card className="mb-6">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -389,13 +425,27 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
               </div>
               
               <div>
-                <Label className="text-sm font-medium text-neutral-700">Valor Mínimo</Label>
-                <Input
-                  type="number"
-                  placeholder="1000"
-                  value={filters.minValue}
-                  onChange={(e) => setFilters({...filters, minValue: e.target.value})}
-                />
+                <Label className="text-sm font-medium text-neutral-700">Mês do Cupom</Label>
+                <Select value={filters.couponMonth} onValueChange={(value) => setFilters({...filters, couponMonth: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os meses</SelectItem>
+                    <SelectItem value="01">Janeiro</SelectItem>
+                    <SelectItem value="02">Fevereiro</SelectItem>
+                    <SelectItem value="03">Março</SelectItem>
+                    <SelectItem value="04">Abril</SelectItem>
+                    <SelectItem value="05">Maio</SelectItem>
+                    <SelectItem value="06">Junho</SelectItem>
+                    <SelectItem value="07">Julho</SelectItem>
+                    <SelectItem value="08">Agosto</SelectItem>
+                    <SelectItem value="09">Setembro</SelectItem>
+                    <SelectItem value="10">Outubro</SelectItem>
+                    <SelectItem value="11">Novembro</SelectItem>
+                    <SelectItem value="12">Dezembro</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>
@@ -409,6 +459,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Assets Table */}
         <Card>
@@ -429,13 +480,62 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                       <TableHead className="w-12">
                         <Checkbox />
                       </TableHead>
-                      <TableHead>Ativo</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Emissor</TableHead>
-                      <TableHead>Taxa</TableHead>
-                      <TableHead>Indexador</TableHead>
-                      <TableHead>Vencimento</TableHead>
-                      <TableHead>PU</TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('name')}>
+                        <div className="flex items-center">
+                          Ativo
+                          {sortConfig?.key === 'name' && (
+                            sortConfig.direction === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('type')}>
+                        <div className="flex items-center">
+                          Tipo
+                          {sortConfig?.key === 'type' && (
+                            sortConfig.direction === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('issuer')}>
+                        <div className="flex items-center">
+                          Emissor
+                          {sortConfig?.key === 'issuer' && (
+                            sortConfig.direction === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('rate')}>
+                        <div className="flex items-center">
+                          Taxa
+                          {sortConfig?.key === 'rate' && (
+                            sortConfig.direction === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('indexer')}>
+                        <div className="flex items-center">
+                          Indexador
+                          {sortConfig?.key === 'indexer' && (
+                            sortConfig.direction === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('dueDate')}>
+                        <div className="flex items-center">
+                          Vencimento
+                          {sortConfig?.key === 'dueDate' && (
+                            sortConfig.direction === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('unitPrice')}>
+                        <div className="flex items-center">
+                          PU
+                          {sortConfig?.key === 'unitPrice' && (
+                            sortConfig.direction === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
                       <TableHead>Frequência</TableHead>
                       <TableHead>Cupom</TableHead>
                       <TableHead>Rem%</TableHead>
