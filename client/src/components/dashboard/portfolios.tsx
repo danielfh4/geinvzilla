@@ -52,6 +52,45 @@ export function Portfolios() {
     queryKey: ["/api/portfolios"],
   });
 
+  const portfoliosArray = portfolios || [];
+
+  // Fetch assets for each portfolio to calculate metrics
+  const portfolioMetricsQueries = useQuery({
+    queryKey: ["/api/portfolios", "metrics"],
+    queryFn: async () => {
+      if (!portfoliosArray.length) return {};
+      
+      const metricsMap: Record<number, any> = {};
+      
+      for (const portfolio of portfoliosArray) {
+        try {
+          const response = await fetch(`/api/portfolios/${portfolio.id}/assets`, {
+            credentials: "include",
+          });
+          if (response.ok) {
+            const assets = await response.json();
+            const selectedAssets = assets.map((pa: any) => ({
+              asset: pa.asset,
+              quantity: parseFloat(pa.quantity),
+              value: parseFloat(pa.value),
+            }));
+            metricsMap[portfolio.id] = calculatePortfolioMetrics(selectedAssets);
+          }
+        } catch (error) {
+          console.error(`Error fetching assets for portfolio ${portfolio.id}:`, error);
+          metricsMap[portfolio.id] = {
+            totalAssets: 0,
+            totalValue: 0,
+            weightedRate: 0,
+          };
+        }
+      }
+      
+      return metricsMap;
+    },
+    enabled: !!portfoliosArray && portfoliosArray.length > 0,
+  });
+
   const createPortfolioMutation = useMutation({
     mutationFn: async (data: PortfolioFormData) => {
       return apiRequest("POST", "/api/portfolios", data);
@@ -160,6 +199,12 @@ export function Portfolios() {
   };
 
   const getPortfolioMetrics = (portfolio: Portfolio) => {
+    // Use calculated metrics if available
+    if (portfolioMetricsQueries.data?.[portfolio.id]) {
+      return portfolioMetricsQueries.data[portfolio.id];
+    }
+    
+    // For detailed view, use loaded portfolio assets
     if (portfolioAssets && selectedPortfolio?.id === portfolio.id) {
       return calculatePortfolioMetrics(
         portfolioAssets.map((pa: any) => ({
@@ -170,6 +215,7 @@ export function Portfolios() {
       );
     }
     
+    // Fallback to stored values
     return {
       totalAssets: 0,
       totalValue: parseFloat(portfolio.totalValue || "0"),
@@ -271,7 +317,7 @@ export function Portfolios() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-neutral-600">Total de Carteiras</p>
                   <p className="text-2xl font-semibold text-neutral-900">
-                    {portfolios?.length || 0}
+                    {portfoliosArray.length || 0}
                   </p>
                 </div>
               </div>
@@ -290,7 +336,7 @@ export function Portfolios() {
                   <p className="text-sm font-medium text-neutral-600">Valor Total</p>
                   <p className="text-2xl font-semibold text-neutral-900">
                     {formatCurrency(
-                      portfolios?.reduce((acc: number, p: Portfolio) => 
+                      portfoliosArray.reduce((acc: number, p: Portfolio) => 
                         acc + parseFloat(p.totalValue || "0"), 0
                       ) || 0
                     )}
