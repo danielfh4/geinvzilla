@@ -121,7 +121,7 @@ export function Portfolios() {
     },
   });
 
-  const { data: portfolioAssets } = useQuery({
+  const { data: portfolioAssetsData } = useQuery({
     queryKey: ["/api/portfolios", selectedPortfolio?.id, "assets"],
     enabled: !!selectedPortfolio?.id,
     queryFn: async () => {
@@ -165,9 +165,9 @@ export function Portfolios() {
 
   const getPortfolioMetrics = (portfolio: Portfolio) => {
     // For detailed view, use loaded portfolio assets
-    if (portfolioAssets && selectedPortfolio?.id === portfolio.id) {
+    if (portfolioAssetsData && selectedPortfolio?.id === portfolio.id) {
       return calculatePortfolioMetrics(
-        portfolioAssets.map((pa: any) => ({
+        portfolioAssetsData.map((pa: any) => ({
           asset: pa.asset,
           quantity: parseFloat(pa.quantity),
           value: parseFloat(pa.value),
@@ -510,7 +510,7 @@ export function Portfolios() {
                 <Card>
                   <CardContent className="p-4 text-center">
                     <div className="text-2xl font-bold text-primary">
-                      {portfolioAssets?.length || 0}
+                      {portfolioAssetsData?.length || 0}
                     </div>
                     <div className="text-sm text-muted-foreground">Ativos</div>
                   </CardContent>
@@ -534,7 +534,7 @@ export function Portfolios() {
               </div>
 
               {/* Portfolio Assets */}
-              {portfolioAssets && portfolioAssets.length > 0 && (
+              {portfolioAssetsData && portfolioAssetsData.length > 0 && (
                 <div>
                   <h4 className="text-lg font-medium mb-2">Ativos da Carteira</h4>
                   <Table>
@@ -548,7 +548,7 @@ export function Portfolios() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {portfolioAssets.map((pa: any) => (
+                      {portfolioAssetsData.map((pa: any) => (
                         <TableRow key={pa.id}>
                           <TableCell>
                             <div>
