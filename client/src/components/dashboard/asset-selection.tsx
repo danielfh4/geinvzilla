@@ -123,11 +123,9 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
     type: "all",
     indexer: "all",
     minRate: "",
-    maxRate: "",
-    minValue: "",
-    maxValue: "",
     couponMonth: "",
     issuer: "",
+    asset: "",
     couponMonths: [] as number[],
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -482,35 +480,12 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div>
-                <Label className="text-sm font-medium text-neutral-700">Taxa Máxima (%)</Label>
+                <Label className="text-sm font-medium text-neutral-700">Buscar Ativo</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="100.00"
-                  value={filters.maxRate}
-                  onChange={(e) => setFilters({...filters, maxRate: e.target.value})}
-                />
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-neutral-700">Valor Mínimo (R$)</Label>
-                <Input
-                  type="number"
-                  step="1000"
-                  placeholder="1000"
-                  value={filters.minValue}
-                  onChange={(e) => setFilters({...filters, minValue: e.target.value})}
-                />
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-neutral-700">Valor Máximo (R$)</Label>
-                <Input
-                  type="number"
-                  step="1000"
-                  placeholder="1000000"
-                  value={filters.maxValue}
-                  onChange={(e) => setFilters({...filters, maxValue: e.target.value})}
+                  type="text"
+                  placeholder="Digite o código ou nome do ativo"
+                  value={filters.asset}
+                  onChange={(e) => setFilters({...filters, asset: e.target.value})}
                 />
               </div>
 

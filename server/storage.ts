@@ -182,10 +182,8 @@ export class DatabaseStorage implements IStorage {
     type?: string;
     indexer?: string;
     minRate?: number;
-    maxRate?: number;
-    minValue?: number;
-    maxValue?: number;
     issuer?: string;
+    asset?: string;
     couponMonth?: string;
     couponMonths?: number[];
   }): Promise<Asset[]> {
@@ -212,22 +210,11 @@ export class DatabaseStorage implements IStorage {
       paramIndex++;
     }
     
-    if (filters.maxRate) {
-      whereConditions.push(`CAST(REPLACE(ah.rate, '%', '') AS DECIMAL) <= $${paramIndex}`);
-      params.push(filters.maxRate);
-      paramIndex++;
-    }
-    
-    if (filters.minValue) {
-      whereConditions.push(`ah.min_value >= $${paramIndex}`);
-      params.push(filters.minValue);
-      paramIndex++;
-    }
-    
-    if (filters.maxValue) {
-      whereConditions.push(`ah.min_value <= $${paramIndex}`);
-      params.push(filters.maxValue);
-      paramIndex++;
+    if (filters.asset) {
+      whereConditions.push(`(au.code ILIKE $${paramIndex} OR au.name ILIKE $${paramIndex + 1})`);
+      params.push(`%${filters.asset}%`);
+      params.push(`%${filters.asset}%`);
+      paramIndex += 2;
     }
     
     if (filters.issuer) {
