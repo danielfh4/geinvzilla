@@ -367,6 +367,77 @@ export function Analytics() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Portfolio Composition Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Composição da Carteira</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-3 font-semibold">Ativo</th>
+                      <th className="text-right p-3 font-semibold">Quantidade</th>
+                      <th className="text-right p-3 font-semibold">Preço Unitário</th>
+                      <th className="text-right p-3 font-semibold">Valor Total</th>
+                      <th className="text-right p-3 font-semibold">% da Carteira</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedAssets.map((selectedAsset, index) => {
+                      const percentage = portfolioMetrics ? (selectedAsset.value / portfolioMetrics.totalValue) * 100 : 0;
+                      return (
+                        <tr key={index} className="border-b hover:bg-gray-50">
+                          <td className="p-3">
+                            <div>
+                              <div className="font-medium">{selectedAsset.asset.name}</div>
+                              <div className="text-sm text-gray-500">{selectedAsset.asset.code}</div>
+                            </div>
+                          </td>
+                          <td className="text-right p-3">
+                            {selectedAsset.quantity.toLocaleString('pt-BR')}
+                          </td>
+                          <td className="text-right p-3">
+                            R$ {selectedAsset.asset.unitPrice?.toLocaleString('pt-BR', { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </td>
+                          <td className="text-right p-3 font-medium">
+                            R$ {selectedAsset.value.toLocaleString('pt-BR', { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </td>
+                          <td className="text-right p-3">
+                            {percentage.toFixed(2)}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 font-semibold bg-gray-50">
+                      <td className="p-3">Total da Carteira</td>
+                      <td className="text-right p-3">
+                        {selectedAssets.reduce((sum, asset) => sum + asset.quantity, 0).toLocaleString('pt-BR')}
+                      </td>
+                      <td className="text-right p-3">-</td>
+                      <td className="text-right p-3">
+                        R$ {portfolioMetrics?.totalValue.toLocaleString('pt-BR', { 
+                          minimumFractionDigits: 2, 
+                          maximumFractionDigits: 2 
+                        })}
+                      </td>
+                      <td className="text-right p-3">100.00%</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>
