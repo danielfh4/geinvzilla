@@ -253,6 +253,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/assets/:id", requireAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid asset ID" });
+      }
+      
       const success = await storage.deleteAsset(id);
       
       if (!success) {
@@ -426,9 +431,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Get file modification date
+      // Get file modification date from the uploaded file
       const stats = fs.statSync(req.file.path);
       const fileModifiedAt = stats.mtime;
+      
+      console.log(`File uploaded: ${req.file.originalname}`);
+      console.log(`File modification date: ${fileModifiedAt}`);
+      console.log(`Current time: ${new Date()}`);
 
       const uploadRecord = await storage.createUpload({
         filename: req.file.filename,
@@ -671,14 +680,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadRecord = await storage.getUploads().then(uploads => 
         uploads.find(u => u.id === uploadId)
       );
+      
+      // Use the file modification date from the upload record as the data timestamp
       const fileModificationDate = uploadRecord?.fileModifiedAt || new Date();
       
-      // Get file stats for additional metadata
-      const stats = fs.statSync(filePath);
-      const actualFileModDate = stats.mtime;
-      
-      console.log(`File modification date: ${actualFileModDate}`);
-      console.log(`Using date for import: ${fileModificationDate}`);
+      console.log(`Processing file for upload ID: ${uploadId}`);
+      console.log(`File modification date from upload: ${fileModificationDate}`);
+      console.log(`This will be used as the historical data timestamp`);
       
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
