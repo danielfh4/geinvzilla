@@ -32,20 +32,31 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
     type: "all",
     indexer: "all",
     minRate: "",
+    maxRate: "",
+    minValue: "",
+    maxValue: "",
     couponMonth: "",
     issuer: "",
+    couponMonths: [] as number[],
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<SelectedAsset[]>([]);
   const [portfolioName, setPortfolioName] = useState("");
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
+  const [selectedAssetForDetail, setSelectedAssetForDetail] = useState<Asset | null>(null);
 
   const { data: assets, isLoading } = useQuery({
     queryKey: ["/api/assets", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== "all") params.append(key, value);
+        if (value && value !== "all") {
+          if (Array.isArray(value) && value.length > 0) {
+            params.append(key, value.join(','));
+          } else if (typeof value === 'string' && value) {
+            params.append(key, value);
+          }
+        }
       });
       
       const response = await fetch(`/api/assets?${params}`);
@@ -378,6 +389,64 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
         {showAdvancedFilters && (
         <Card className="mb-6">
           <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div>
+                <Label className="text-sm font-medium text-neutral-700">Taxa Máxima (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="100.00"
+                  value={filters.maxRate}
+                  onChange={(e) => setFilters({...filters, maxRate: e.target.value})}
+                />
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium text-neutral-700">Valor Mínimo (R$)</Label>
+                <Input
+                  type="number"
+                  step="1000"
+                  placeholder="1000"
+                  value={filters.minValue}
+                  onChange={(e) => setFilters({...filters, minValue: e.target.value})}
+                />
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium text-neutral-700">Valor Máximo (R$)</Label>
+                <Input
+                  type="number"
+                  step="1000"
+                  placeholder="1000000"
+                  value={filters.maxValue}
+                  onChange={(e) => setFilters({...filters, maxValue: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-neutral-700">Múltiplos Meses de Cupom</Label>
+                <div className="flex flex-wrap gap-1 mt-1 max-h-24 overflow-y-auto">
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(month => (
+                    <Button
+                      key={month}
+                      type="button"
+                      variant={filters.couponMonths.includes(month) ? "default" : "outline"}
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => {
+                        const newMonths = filters.couponMonths.includes(month)
+                          ? filters.couponMonths.filter(m => m !== month)
+                          : [...filters.couponMonths, month];
+                        setFilters({...filters, couponMonths: newMonths});
+                      }}
+                    >
+                      {month}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
                 <Label className="text-sm font-medium text-neutral-700">Tipo de Ativo</Label>
@@ -557,7 +626,12 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{asset.name}</div>
+                              <div 
+                                className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer hover:underline"
+                                onClick={() => setSelectedAssetForDetail(asset)}
+                              >
+                                {asset.name}
+                              </div>
                               <div className="text-sm text-muted-foreground">{asset.code}</div>
                             </div>
                           </TableCell>
