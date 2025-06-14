@@ -30,6 +30,12 @@ export function Management() {
       const formData = new FormData();
       formData.append("file", file);
       
+      // Add the file's last modified timestamp to preserve original date
+      if (file.lastModified) {
+        formData.append("lastModified", file.lastModified.toString());
+        console.log(`Sending file with original modification date: ${new Date(file.lastModified)}`);
+      }
+      
       const response = await fetch(`/api/uploads/${type}`, {
         method: "POST",
         body: formData,

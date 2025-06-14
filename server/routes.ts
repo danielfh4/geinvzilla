@@ -250,6 +250,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Assets cleanup route - MUST be before the :id route
+  app.delete("/api/assets/clear", requireAdmin, async (req, res) => {
+    try {
+      await storage.clearAllAssets();
+      console.log("Assets cleared successfully");
+      res.json({ message: "Assets cleared successfully" });
+    } catch (error) {
+      console.error("Assets clear error:", error);
+      res.status(500).json({ message: "Failed to clear assets" });
+    }
+  });
+
   app.delete("/api/assets/:id", requireAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -431,12 +443,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Get file modification date from the uploaded file
-      const stats = fs.statSync(req.file.path);
-      const fileModifiedAt = stats.mtime;
+      // Extract file modification date from the client-side
+      // The browser doesn't provide lastModified in the standard upload, 
+      // so we'll use a custom approach
+      let fileModifiedAt = new Date();
+      
+      // Check if the client sent the last modified timestamp
+      if (req.body.lastModified && !isNaN(parseInt(req.body.lastModified))) {
+        fileModifiedAt = new Date(parseInt(req.body.lastModified));
+        console.log(`Using client-provided file modification date: ${fileModifiedAt}`);
+      } else {
+        // Fallback: check if we can extract from file stats
+        const stats = fs.statSync(req.file.path);
+        fileModifiedAt = stats.mtime;
+        console.log(`Using server file stats date: ${fileModifiedAt}`);
+      }
       
       console.log(`File uploaded: ${req.file.originalname}`);
-      console.log(`File modification date: ${fileModifiedAt}`);
+      console.log(`Final file modification date: ${fileModifiedAt}`);
       console.log(`Current time: ${new Date()}`);
 
       const uploadRecord = await storage.createUpload({
@@ -469,17 +493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Assets cleanup route
-  app.delete("/api/assets/clear", requireAdmin, async (req, res) => {
-    try {
-      await storage.clearAllAssets();
-      console.log("Assets cleared successfully");
-      res.json({ message: "Assets cleared successfully" });
-    } catch (error) {
-      console.error("Assets clear error:", error);
-      res.status(500).json({ message: "Failed to clear assets" });
-    }
-  });
+
 
   app.post("/api/uploads/pdf", requireAdmin, upload.single("file"), async (req, res) => {
     try {
