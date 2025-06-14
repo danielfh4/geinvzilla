@@ -9,11 +9,98 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Filter, Save, Plus, Settings, X, ChevronUp, ChevronDown, TrendingUp, BarChart } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { calculatePortfolioMetrics } from "@/lib/calculations";
 import type { Asset } from "@shared/schema";
+
+// Asset History Chart Component
+function AssetHistoryChart({ assetCode }: { assetCode: string }) {
+  const { data: assetHistory, isLoading } = useQuery({
+    queryKey: ["/api/assets", assetCode, "history"],
+    queryFn: () => apiRequest(`/api/assets/${assetCode}/history`),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center">
+          <TrendingUp className="h-8 w-8 mx-auto mb-2 animate-pulse opacity-50" />
+          <p className="text-muted-foreground">Carregando histórico...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!assetHistory || assetHistory.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center">
+          <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-muted-foreground">Nenhum histórico disponível</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Prepare chart data
+  const chartData = assetHistory
+    .map((asset: Asset) => ({
+      date: asset.importedAt ? new Date(asset.importedAt).toLocaleDateString('pt-BR') : new Date(asset.createdAt).toLocaleDateString('pt-BR'),
+      pu: asset.unitPrice ? parseFloat(asset.unitPrice) : null,
+      taxa: asset.rate ? parseFloat(asset.rate.replace(/[^\d,.-]/g, '').replace(',', '.')) : null,
+      timestamp: asset.importedAt ? new Date(asset.importedAt).getTime() : new Date(asset.createdAt).getTime()
+    }))
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .slice(-12); // Last 12 entries
+
+  return (
+    <div className="h-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="date" 
+            fontSize={12}
+            angle={-45}
+            textAnchor="end"
+            height={60}
+          />
+          <YAxis yAxisId="pu" orientation="left" fontSize={12} />
+          <YAxis yAxisId="taxa" orientation="right" fontSize={12} />
+          <Tooltip 
+            formatter={(value, name) => [
+              name === 'PU' ? `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : `${Number(value).toFixed(2)}%`,
+              name
+            ]}
+            labelStyle={{ color: '#000' }}
+          />
+          <Legend />
+          <Line 
+            yAxisId="pu"
+            type="monotone" 
+            dataKey="pu" 
+            stroke="#8884d8" 
+            strokeWidth={2}
+            name="PU"
+            connectNulls={false}
+          />
+          <Line 
+            yAxisId="taxa"
+            type="monotone" 
+            dataKey="taxa" 
+            stroke="#82ca9d" 
+            strokeWidth={2}
+            name="Taxa (%)"
+            connectNulls={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 interface SelectedAsset {
   asset: Asset;
@@ -650,7 +737,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                           </TableCell>
                           <TableCell>{asset.maturityDate}</TableCell>
                           <TableCell>
-                            R$ {asset.unitPrice ? parseFloat(asset.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : parseFloat(asset.minValue).toLocaleString('pt-BR')}
+                            R$ {asset.unitPrice ? parseFloat(asset.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : parseFloat(asset.minValue).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell>{asset.frequency || '-'}</TableCell>
                           <TableCell>{asset.couponMonths || '-'}</TableCell>
@@ -756,35 +843,13 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                   </CardContent>
                 </Card>
 
-                {/* Price History Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Histórico de Preço (Últimos 12 Meses)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Gráfico de histórico será implementado</p>
-                        <p className="text-sm">com dados históricos reais</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Rate Comparison Chart */}
+                {/* Historical Price and Rate Chart */}
                 <Card className="md:col-span-2">
                   <CardHeader>
-                    <CardTitle>Comparação de Taxa com Indexadores</CardTitle>
+                    <CardTitle>Histórico de PU e Taxa - {selectedAssetForDetail.code}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <BarChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Gráfico comparativo será implementado</p>
-                        <p className="text-sm">comparando taxa do ativo com CDI, IPCA e outros indexadores</p>
-                      </div>
-                    </div>
+                    <AssetHistoryChart assetCode={selectedAssetForDetail.code} />
                   </CardContent>
                 </Card>
               </div>

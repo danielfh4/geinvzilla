@@ -135,7 +135,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllAssets(): Promise<Asset[]> {
-    return await db.select().from(assets).where(eq(assets.isActive, true)).orderBy(desc(assets.createdAt));
+    // Get only the most recent version of each asset (latest importedAt per code)
+    const latestAssets = await db.execute(sql`
+      SELECT DISTINCT ON (code) *
+      FROM assets 
+      WHERE is_active = true 
+      ORDER BY code, imported_at DESC NULLS LAST, created_at DESC
+    `);
+    
+    return latestAssets.rows as Asset[];
   }
 
   async getAssetById(id: number): Promise<Asset | undefined> {
