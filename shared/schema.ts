@@ -14,6 +14,24 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Unique asset data (constant data)
+export const assetsUnique = pgTable("assets_unique", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(), 
+  type: text("type").notNull(), // CRI, CRA, DEB, LCA, CDB, FUND
+  issuer: text("issuer").notNull(),
+  sector: text("sector"),
+  indexer: text("indexer").notNull(), // CDI, IPCA, SELIC, PREFIXADO
+  maturityDate: text("maturity_date"),
+  frequency: text("frequency"), // monthly, quarterly, semiannual, annual
+  rating: text("rating"), // Asset rating (AAA, AA+, etc.)
+  couponMonths: text("coupon_months"), // Months when coupons are paid
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Combined asset with historical data for API responses
 export const assets = pgTable("assets", {
   id: serial("id").primaryKey(),
@@ -41,7 +59,7 @@ export const assets = pgTable("assets", {
 // Historical asset data (variable data over time)
 export const assetHistories = pgTable("asset_histories", {
   id: serial("id").primaryKey(),
-  assetId: integer("asset_id").references(() => assets.id).notNull(),
+  assetCode: text("asset_code").notNull(), // References assetsUnique.code
   rate: text("rate").notNull(),
   unitPrice: decimal("unit_price", { precision: 15, scale: 2 }),
   minValue: decimal("min_value", { precision: 15, scale: 2 }).notNull(),
@@ -65,7 +83,7 @@ export const portfolios = pgTable("portfolios", {
 export const portfolioAssets = pgTable("portfolio_assets", {
   id: serial("id").primaryKey(),
   portfolioId: integer("portfolio_id").references(() => portfolios.id).notNull(),
-  assetId: integer("asset_id").references(() => assets.id).notNull(),
+  assetId: integer("asset_id").references(() => assetsUnique.id).notNull(),
   quantity: decimal("quantity", { precision: 15, scale: 2 }).notNull(),
   value: decimal("value", { precision: 15, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

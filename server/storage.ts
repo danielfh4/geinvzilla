@@ -205,7 +205,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (filters.minRate) {
-      whereConditions.push(`CAST(REPLACE(ah.rate, '%', '') AS DECIMAL) >= $${paramIndex}`);
+      whereConditions.push(`CAST(REPLACE(REPLACE(ah.rate, '%', ''), ',', '.') AS DECIMAL) >= $${paramIndex}`);
       params.push(filters.minRate);
       paramIndex++;
     }
