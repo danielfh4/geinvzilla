@@ -738,7 +738,13 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                               {asset.indexer}
                             </Badge>
                           </TableCell>
-                          <TableCell>{asset.maturityDate}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              if (!asset.maturityDate) return '-';
+                              const date = new Date(asset.maturityDate);
+                              return isNaN(date.getTime()) ? '-' : date.toLocaleDateString('pt-BR');
+                            })()}
+                          </TableCell>
                           <TableCell>
                             {(() => {
                               const price = asset.unitPrice || asset.minValue || '1000.00';
@@ -848,10 +854,15 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Data dos Dados</Label>
                         <div className="font-medium">
-                          {selectedAssetForDetail.importedAt ? 
-                            new Date(selectedAssetForDetail.importedAt).toLocaleDateString('pt-BR') : 
-                            new Date(selectedAssetForDetail.createdAt).toLocaleDateString('pt-BR')
-                          }
+                          {(() => {
+                            const dateToFormat = selectedAssetForDetail.importedAt || selectedAssetForDetail.createdAt;
+                            if (!dateToFormat) return 'Data não disponível';
+                            
+                            const date = new Date(dateToFormat);
+                            if (isNaN(date.getTime())) return 'Data inválida';
+                            
+                            return date.toLocaleDateString('pt-BR');
+                          })()}
                         </div>
                       </div>
                     </div>

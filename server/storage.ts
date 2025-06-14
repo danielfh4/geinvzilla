@@ -135,12 +135,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllAssets(): Promise<Asset[]> {
-    // Get only the most recent version of each asset (latest importedAt per code)
+    // Use a window function to get the most recent version of each asset
     const latestAssets = await db.execute(sql`
-      SELECT DISTINCT ON (code) *
-      FROM assets 
-      WHERE is_active = true 
-      ORDER BY code, imported_at DESC NULLS LAST, created_at DESC
+      WITH RankedAssets AS (
+        SELECT *,
+               ROW_NUMBER() OVER (PARTITION BY code ORDER BY imported_at DESC NULLS LAST, created_at DESC) as rn
+        FROM assets 
+        WHERE is_active = true
+      )
+      SELECT id, name, code, type, issuer, sector, rate, indexer, maturity_date, min_value, 
+             imported_at, frequency, rem_percentage, rating, coupon_months, unit_price, 
+             is_active, created_at, updated_at
+      FROM RankedAssets 
+      WHERE rn = 1
+      ORDER BY created_at DESC
     `);
     
     return latestAssets.rows as Asset[];
