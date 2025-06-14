@@ -14,26 +14,34 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Base asset information (constant data)
 export const assets = pgTable("assets", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  code: text("code").notNull(), // Removed unique constraint to allow historical versions
+  code: text("code").notNull().unique(), // Asset code is unique
   type: text("type").notNull(), // CRI, CRA, DEB, LCA, CDB, FUND
   issuer: text("issuer").notNull(),
   sector: text("sector"),
-  rate: text("rate").notNull(),
   indexer: text("indexer").notNull(), // CDI, IPCA, SELIC, PREFIXADO
   maturityDate: text("maturity_date"),
-  minValue: decimal("min_value", { precision: 15, scale: 2 }).notNull(),
   frequency: text("frequency"), // monthly, quarterly, semiannual, annual
-  remPercentage: decimal("rem_percentage", { precision: 5, scale: 4 }), // commission percentage
   rating: text("rating"), // Asset rating (AAA, AA+, etc.)
   couponMonths: text("coupon_months"), // Months when coupons are paid
-  unitPrice: decimal("unit_price", { precision: 15, scale: 2 }), // PU - Unit price
-  importedAt: timestamp("imported_at"), // Data baseada na modificação do arquivo Excel
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Historical asset data (variable data over time)
+export const assetHistories = pgTable("asset_histories", {
+  id: serial("id").primaryKey(),
+  assetId: integer("asset_id").references(() => assets.id).notNull(),
+  rate: text("rate").notNull(),
+  unitPrice: decimal("unit_price", { precision: 15, scale: 2 }),
+  minValue: decimal("min_value", { precision: 15, scale: 2 }).notNull(),
+  remPercentage: decimal("rem_percentage", { precision: 5, scale: 4 }),
+  importedAt: timestamp("imported_at").notNull(), // Data baseada na modificação do arquivo Excel
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const portfolios = pgTable("portfolios", {
