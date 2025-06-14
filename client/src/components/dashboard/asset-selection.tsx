@@ -154,6 +154,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
     couponMonths: [] as number[],
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<SelectedAsset[]>([]);
   const [portfolioName, setPortfolioName] = useState("");
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
@@ -401,6 +402,16 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
               <Settings className="mr-2 h-4 w-4" />
               Filtros Avançados
             </Button>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-selected"
+                checked={showSelectedOnly}
+                onCheckedChange={(checked) => setShowSelectedOnly(checked as boolean)}
+              />
+              <Label htmlFor="show-selected" className="text-sm">
+                Mostrar apenas selecionados ({selectedAssets.length})
+              </Label>
+            </div>
             <Button 
               variant="outline" 
               onClick={() => setSelectedAssets([])}
