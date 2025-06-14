@@ -91,24 +91,41 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
     }
   }, [editingPortfolioId, existingPortfolio, existingPortfolioAssets]);
 
-  const createPortfolioMutation = useMutation({
+  const savePortfolioMutation = useMutation({
     mutationFn: async (data: { name: string; description: string; assets: SelectedAsset[] }) => {
-      // First create the portfolio
-      const portfolio: any = await apiRequest("POST", "/api/portfolios", {
-        name: data.name,
-        description: data.description,
-      });
+      let portfolio: any;
+      
+      if (editingPortfolioId) {
+        // Update existing portfolio
+        portfolio = await apiRequest("PUT", `/api/portfolios/${editingPortfolioId}`, {
+          name: data.name,
+          description: data.description,
+        });
 
-      console.log("Created portfolio:", portfolio);
-
-      if (!portfolio || !portfolio.id) {
-        throw new Error("Portfolio creation failed - no ID returned");
+        // Clear existing assets
+        const existingAssets = await fetch(`/api/portfolios/${editingPortfolioId}/assets`, {
+          credentials: "include"
+        }).then(res => res.json());
+        
+        for (const asset of existingAssets) {
+          await apiRequest("DELETE", `/api/portfolios/${editingPortfolioId}/assets/${asset.assetId}`);
+        }
+      } else {
+        // Create new portfolio
+        portfolio = await apiRequest("POST", "/api/portfolios", {
+          name: data.name,
+          description: data.description,
+        });
       }
 
-      // Then add each selected asset to the portfolio
+      const portfolioId = editingPortfolioId || portfolio.id;
+      if (!portfolioId) {
+        throw new Error("Portfolio operation failed - no ID available");
+      }
+
+      // Add selected assets to the portfolio
       for (const selectedAsset of data.assets) {
-        console.log(`Adding asset ${selectedAsset.asset.id} to portfolio ${portfolio.id}`);
-        await apiRequest("POST", `/api/portfolios/${portfolio.id}/assets`, {
+        await apiRequest("POST", `/api/portfolios/${portfolioId}/assets`, {
           assetId: selectedAsset.asset.id,
           quantity: selectedAsset.quantity.toString(),
           value: selectedAsset.value.toString(),
@@ -120,16 +137,17 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
     onSuccess: () => {
       toast({
         title: "Sucesso",
-        description: "Carteira criada com sucesso!",
+        description: editingPortfolioId ? "Carteira atualizada com sucesso!" : "Carteira criada com sucesso!",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolios"] });
       setSelectedAssets([]);
       setPortfolioName("");
+      onPortfolioSaved?.();
     },
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: error.message || "Erro ao criar carteira. Tente novamente.",
+        description: error.message || `Erro ao ${editingPortfolioId ? 'atualizar' : 'criar'} carteira. Tente novamente.`,
         variant: "destructive",
       });
     },
@@ -193,7 +211,7 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
       return;
     }
 
-    createPortfolioMutation.mutate({
+    savePortfolioMutation.mutate({
       name: portfolioName,
       description: `Carteira com ${selectedAssets.length} ativos`,
       assets: selectedAssets,
@@ -207,17 +225,27 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 className="text-2xl font-semibold text-neutral-900">Seleção de Ativos</h2>
-            <p className="mt-1 text-sm text-neutral-600">Selecione ativos para compor suas carteiras</p>
+            <h2 className="text-2xl font-semibold text-neutral-900">
+              {editingPortfolioId ? "Editar Carteira" : "Seleção de Ativos"}
+            </h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              {editingPortfolioId 
+                ? "Modifique a composição de ativos da carteira" 
+                : "Selecione ativos para compor suas carteiras"
+              }
+            </p>
           </div>
           <div className="flex space-x-3">
             <Button variant="outline">
               <Filter className="mr-2 h-4 w-4" />
               Filtros Avançados
             </Button>
-            <Button onClick={handleSavePortfolio} disabled={selectedAssets.length === 0}>
+            <Button onClick={handleSavePortfolio} disabled={selectedAssets.length === 0 || savePortfolioMutation.isPending}>
               <Save className="mr-2 h-4 w-4" />
-              Salvar Carteira
+              {savePortfolioMutation.isPending 
+                ? (editingPortfolioId ? "Atualizando..." : "Salvando...") 
+                : (editingPortfolioId ? "Atualizar Carteira" : "Salvar Carteira")
+              }
             </Button>
           </div>
         </div>

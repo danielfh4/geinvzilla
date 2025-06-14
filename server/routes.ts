@@ -305,6 +305,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/portfolios/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const portfolio = await storage.getPortfolioById(id);
+      
+      if (!portfolio) {
+        return res.status(404).json({ message: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(portfolio);
+    } catch (error) {
+      console.error("Get portfolio error:", error);
+      res.status(500).json({ message: "Failed to fetch portfolio" });
+    }
+  });
+
+  app.put("/api/portfolios/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const portfolio = await storage.getPortfolioById(id);
+      
+      if (!portfolio) {
+        return res.status(404).json({ message: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const portfolioData = insertPortfolioSchema.partial().parse(req.body);
+      const updatedPortfolio = await storage.updatePortfolio(id, portfolioData);
+      
+      if (!updatedPortfolio) {
+        return res.status(404).json({ message: "Portfolio not found" });
+      }
+      
+      res.json(updatedPortfolio);
+    } catch (error) {
+      console.error("Update portfolio error:", error);
+      res.status(400).json({ message: "Invalid portfolio data" });
+    }
+  });
+
   app.post("/api/portfolios/:id/assets", requireAuth, async (req, res) => {
     try {
       const portfolioId = parseInt(req.params.id);
@@ -333,6 +380,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Add asset to portfolio error:", error);
       res.status(400).json({ message: "Invalid portfolio asset data" });
+    }
+  });
+
+  app.delete("/api/portfolios/:portfolioId/assets/:assetId", requireAuth, async (req, res) => {
+    try {
+      const portfolioId = parseInt(req.params.portfolioId);
+      const assetId = parseInt(req.params.assetId);
+      
+      const portfolio = await storage.getPortfolioById(portfolioId);
+      
+      if (!portfolio) {
+        return res.status(404).json({ message: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const success = await storage.removeAssetFromPortfolio(portfolioId, assetId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Asset not found in portfolio" });
+      }
+      
+      res.json({ message: "Asset removed from portfolio successfully" });
+    } catch (error) {
+      console.error("Remove asset from portfolio error:", error);
+      res.status(500).json({ message: "Failed to remove asset from portfolio" });
     }
   });
 
