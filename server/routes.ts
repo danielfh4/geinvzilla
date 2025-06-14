@@ -426,11 +426,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      // Get file modification date
+      const stats = fs.statSync(req.file.path);
+      const fileModifiedAt = stats.mtime;
+
       const uploadRecord = await storage.createUpload({
         filename: req.file.filename,
         originalName: req.file.originalname,
         type: "excel",
         uploadedBy: req.user.id,
+        fileModifiedAt: fileModifiedAt,
       });
 
       // Process Excel file in background
@@ -661,6 +666,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   async function processExcelFile(filePath: string, uploadId: number) {
     try {
       console.log(`Processing Excel file: ${filePath}`);
+      
+      // Get upload record to access file modification date
+      const uploadRecord = await storage.getUploads().then(uploads => 
+        uploads.find(u => u.id === uploadId)
+      );
+      const fileModificationDate = uploadRecord?.fileModifiedAt || new Date();
+      
+      // Get file stats for additional metadata
+      const stats = fs.statSync(filePath);
+      const actualFileModDate = stats.mtime;
+      
+      console.log(`File modification date: ${actualFileModDate}`);
+      console.log(`Using date for import: ${fileModificationDate}`);
+      
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       console.log(`Sheet name: ${sheetName}`);

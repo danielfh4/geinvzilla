@@ -30,6 +30,7 @@ export const assets = pgTable("assets", {
   rating: text("rating"), // Asset rating (AAA, AA+, etc.)
   couponMonths: text("coupon_months"), // Months when coupons are paid
   unitPrice: decimal("unit_price", { precision: 15, scale: 2 }), // PU - Unit price
+  importedAt: timestamp("imported_at"), // Data baseada na modificação do arquivo Excel
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -73,6 +74,7 @@ export const uploads = pgTable("uploads", {
   recordsImported: integer("records_imported").default(0),
   errorMessage: text("error_message"),
   uploadedBy: integer("uploaded_by").references(() => users.id).notNull(),
+  fileModifiedAt: timestamp("file_modified_at"), // Data de modificação do arquivo original
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
