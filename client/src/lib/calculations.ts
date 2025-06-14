@@ -175,7 +175,7 @@ function extractNumericRate(rateString: string): number {
 interface CouponDetail {
   assetName: string;
   value: number;
-  frequency: string;
+  frequency: string | null;
 }
 
 interface MonthlyCouponData {
@@ -187,25 +187,14 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
   const monthlyCoupons = new Array(12).fill(0);
   const monthlyDetails: MonthlyCouponData[] = new Array(12).fill(null).map(() => ({ total: 0, details: [] }));
   
-  console.log("Calculating coupons for", selectedAssets.length, "assets with CDI rate:", cdiRate);
-  
   if (selectedAssets.length === 0) {
-    console.log("No assets provided for coupon calculation");
     return { totals: monthlyCoupons, details: monthlyDetails };
   }
   
   selectedAssets.forEach(({ asset, quantity, value }) => {
-    console.log("Processing asset:", asset.name, {
-      couponMonths: asset.couponMonths,
-      frequency: asset.frequency,
-      unitPrice: asset.unitPrice,
-      rate: asset.rate,
-      indexer: asset.indexer
-    });
     
     // Check if asset has coupon months and frequency, if not, skip coupon calculation
     if (!asset.couponMonths || !asset.frequency) {
-      console.log("Skipping asset - missing couponMonths or frequency");
       return;
     }
     
@@ -258,8 +247,6 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
     const isQuarterly = frequency.includes('trimestral') || frequency.includes('quarterly');
     const isSemiannual = frequency.includes('semestral') || frequency.includes('semiannual');
     const isAnnual = frequency.includes('anual') || frequency.includes('annual');
-    
-    console.log("Annual coupon calculated:", annualCoupon, "for frequency:", frequency);
     
     if (isMonthly) {
       couponValue = annualCoupon / 12;
@@ -316,8 +303,7 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
         }
       });
     }
-    
-    console.log("Coupon value per payment:", couponValue, "applied to months:", couponMonths);
+
   });
   
   return { totals: monthlyCoupons, details: monthlyDetails };

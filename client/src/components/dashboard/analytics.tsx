@@ -63,7 +63,8 @@ export function Analytics() {
 
   const couponData = portfolioMetrics ? portfolioMetrics.monthlyCoupons.map((value, index) => ({
     month: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][index],
-    value: Math.round(value)
+    value: Math.round(value),
+    details: portfolioMetrics.monthlyCouponDetails[index]?.details || []
   })) : [];
 
   const concentrationData = portfolioMetrics ? {
@@ -268,7 +269,40 @@ export function Analytics() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`R$ ${value}`, "Cupons"]} />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length > 0) {
+                          const data = payload[0].payload;
+                          const totalValue = payload[0].value as number;
+                          const assets = data.details || [];
+                          
+                          return (
+                            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-sm">
+                              <p className="font-semibold text-gray-900 mb-2">
+                                {label} - R$ {totalValue?.toLocaleString('pt-BR')}
+                              </p>
+                              {assets.length > 0 ? (
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-gray-700">Ativos:</p>
+                                  {assets.map((asset: any, index: number) => (
+                                    <div key={index} className="text-xs text-gray-600">
+                                      <div className="font-medium">{asset.assetName}</div>
+                                      <div className="flex justify-between">
+                                        <span>{asset.frequency || 'N/A'}</span>
+                                        <span>R$ {asset.value?.toLocaleString('pt-BR')}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-500">Nenhum cupom neste mês</p>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
                     <Line 
                       type="monotone" 
                       dataKey="value" 
