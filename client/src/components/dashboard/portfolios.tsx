@@ -110,7 +110,7 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
 
   const deletePortfolioMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/portfolios/${id}`, "DELETE");
+      return await apiRequest("DELETE", `/api/portfolios/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolios"] });
@@ -479,7 +479,7 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
           {selectedPortfolio && (
             <div className="space-y-4">
               {/* Portfolio Assets */}
-              {portfolioAssetsData && portfolioAssetsData.length > 0 ? (
+              {portfolioAssetsData && Array.isArray(portfolioAssetsData) && portfolioAssetsData.length > 0 ? (
                 <div>
                   <h4 className="font-medium mb-2">Ativos da Carteira</h4>
                   <Table>
@@ -493,7 +493,7 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {portfolioAssetsData.map((pa: any) => (
+                      {(portfolioAssetsData as any[]).map((pa: any) => (
                         <TableRow key={pa.id}>
                           <TableCell>{pa.asset.name}</TableCell>
                           <TableCell>{pa.asset.code}</TableCell>
