@@ -64,7 +64,10 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
   // Mutations
   const createPortfolioMutation = useMutation({
     mutationFn: async (data: PortfolioFormData) => {
-      return await apiRequest("POST", `/api/portfolios`, data);
+      return await apiRequest(`/api/portfolios`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolios"] });
@@ -87,7 +90,10 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
   const updatePortfolioMutation = useMutation({
     mutationFn: async (data: PortfolioFormData) => {
       if (!selectedPortfolio) throw new Error("Nenhuma carteira selecionada");
-      return await apiRequest("PUT", `/api/portfolios/${selectedPortfolio.id}`, data);
+      return await apiRequest(`/api/portfolios/${selectedPortfolio.id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolios"] });
@@ -110,7 +116,9 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
 
   const deletePortfolioMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/portfolios/${id}`, "DELETE");
+      return await apiRequest(`/api/portfolios/${id}`, {
+        method: "DELETE",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolios"] });
