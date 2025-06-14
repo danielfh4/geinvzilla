@@ -6,15 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChartLine, User, ShieldX } from "lucide-react";
-import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("admin");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -22,12 +20,29 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(username, password);
-      setLocation("/dashboard");
-    } catch (error) {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+      
+      if (response.ok) {
+        setLocation("/dashboard");
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Erro no login",
+          description: error.message || "Credenciais inválidas. Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    } catch (networkError) {
       toast({
-        title: "Erro no login",
-        description: "Credenciais inválidas. Tente novamente.",
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
         variant: "destructive",
       });
     } finally {
@@ -39,13 +54,26 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      if (role === 'admin') {
-        await login('admin', 'admin123');
+      const credentials = role === 'admin' ? { username: 'admin', password: 'admin' } : { username: 'user', password: 'user' };
+      
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(credentials),
+      });
+      
+      if (response.ok) {
+        setLocation("/dashboard");
       } else {
-        // For demo purposes, create a user account if needed
-        await login('user', 'user123');
+        toast({
+          title: "Erro no login",
+          description: "Não foi possível fazer login. Tente novamente.",
+          variant: "destructive",
+        });
       }
-      setLocation("/dashboard");
     } catch (error) {
       toast({
         title: "Erro no login",
