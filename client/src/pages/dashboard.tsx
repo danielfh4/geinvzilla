@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [, setLocation] = useLocation();
   const { user, isLoading } = useAuth();
   const [activeSection, setActiveSection] = useState("overview");
+  const [editingPortfolioId, setEditingPortfolioId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -49,14 +50,22 @@ export default function DashboardPage() {
     return titles[activeSection as keyof typeof titles] || "Dashboard";
   };
 
+  const handleEditPortfolio = (portfolioId: number) => {
+    setEditingPortfolioId(portfolioId);
+    setActiveSection("assets");
+  };
+
   const renderActiveSection = () => {
     switch (activeSection) {
       case "overview":
         return <Overview />;
       case "assets":
-        return <AssetSelection />;
+        return <AssetSelection editingPortfolioId={editingPortfolioId} onPortfolioSaved={() => {
+          setEditingPortfolioId(null);
+          setActiveSection("portfolios");
+        }} />;
       case "portfolios":
-        return <Portfolios />;
+        return <Portfolios onEditPortfolio={handleEditPortfolio} />;
       case "analytics":
         return <Analytics />;
       case "reports":

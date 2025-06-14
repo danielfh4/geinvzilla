@@ -32,7 +32,11 @@ interface PortfolioWithAssets extends Portfolio {
   assets?: (PortfolioAsset & { asset: Asset })[];
 }
 
-export function Portfolios() {
+interface PortfoliosProps {
+  onEditPortfolio?: (portfolioId: number) => void;
+}
+
+export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioWithAssets | null>(null);
@@ -146,10 +150,14 @@ export function Portfolios() {
   };
 
   const handleEditPortfolio = (portfolio: Portfolio) => {
-    setSelectedPortfolio(portfolio);
-    form.setValue("name", portfolio.name);
-    form.setValue("description", portfolio.description || "");
-    setShowEditDialog(true);
+    if (onEditPortfolio) {
+      onEditPortfolio(portfolio.id);
+    } else {
+      setSelectedPortfolio(portfolio);
+      form.setValue("name", portfolio.name);
+      form.setValue("description", portfolio.description || "");
+      setShowEditDialog(true);
+    }
   };
 
   const handleViewPortfolio = (portfolio: Portfolio) => {

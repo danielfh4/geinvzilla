@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,12 @@ interface SelectedAsset {
   value: number;
 }
 
-export function AssetSelection() {
+interface AssetSelectionProps {
+  editingPortfolioId?: number | null;
+  onPortfolioSaved?: () => void;
+}
+
+export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSelectionProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({
@@ -46,6 +51,45 @@ export function AssetSelection() {
       return response.json();
     },
   });
+
+  // Load existing portfolio data when editing
+  const { data: existingPortfolio } = useQuery({
+    queryKey: ["/api/portfolios", editingPortfolioId],
+    queryFn: async () => {
+      const response = await fetch(`/api/portfolios/${editingPortfolioId}`);
+      if (!response.ok) throw new Error("Failed to fetch portfolio");
+      return response.json();
+    },
+    enabled: !!editingPortfolioId,
+  });
+
+  const { data: existingPortfolioAssets } = useQuery({
+    queryKey: ["/api/portfolios", editingPortfolioId, "assets"],
+    queryFn: async () => {
+      const response = await fetch(`/api/portfolios/${editingPortfolioId}/assets`);
+      if (!response.ok) throw new Error("Failed to fetch portfolio assets");
+      return response.json();
+    },
+    enabled: !!editingPortfolioId,
+  });
+
+  // Load existing portfolio data when editing
+  useEffect(() => {
+    if (editingPortfolioId && existingPortfolio && existingPortfolioAssets) {
+      setPortfolioName(existingPortfolio.name);
+      setSelectedAssets(
+        existingPortfolioAssets.map((pa: any) => ({
+          asset: pa.asset,
+          quantity: parseFloat(pa.quantity),
+          value: parseFloat(pa.value),
+        }))
+      );
+    } else if (!editingPortfolioId) {
+      // Reset when not editing
+      setPortfolioName("");
+      setSelectedAssets([]);
+    }
+  }, [editingPortfolioId, existingPortfolio, existingPortfolioAssets]);
 
   const createPortfolioMutation = useMutation({
     mutationFn: async (data: { name: string; description: string; assets: SelectedAsset[] }) => {
