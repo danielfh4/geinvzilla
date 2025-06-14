@@ -171,11 +171,44 @@ function extractNumericRate(rateString: string): number {
 function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.65): number[] {
   const monthlyCoupons = new Array(12).fill(0);
   
+  console.log("Calculating coupons for", selectedAssets.length, "assets with CDI rate:", cdiRate);
+  
+  if (selectedAssets.length === 0) {
+    console.log("No assets provided for coupon calculation");
+    return monthlyCoupons;
+  }
+  
   selectedAssets.forEach(({ asset, quantity, value }) => {
-    if (!asset.couponMonths || !asset.frequency || !asset.unitPrice) return;
+    console.log("Processing asset:", asset.name, {
+      couponMonths: asset.couponMonths,
+      frequency: asset.frequency,
+      unitPrice: asset.unitPrice,
+      rate: asset.rate,
+      indexer: asset.indexer
+    });
     
-    const couponMonths = asset.couponMonths.split(',').map(m => parseInt(m.trim()) - 1);
-    const unitPrice = parseFloat(asset.unitPrice.toString());
+    // Check if asset has coupon months and frequency, if not, skip coupon calculation
+    if (!asset.couponMonths || !asset.frequency) {
+      console.log("Skipping asset - missing couponMonths or frequency");
+      return;
+    }
+    
+    // Parse coupon months - handle different formats like "03 E 09" or "03,09" or "TODOS"
+    let couponMonths: number[] = [];
+    if (asset.couponMonths.toUpperCase() === 'TODOS') {
+      // All months for monthly payments
+      couponMonths = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    } else {
+      // Split by comma, "E", or space and parse numbers
+      couponMonths = asset.couponMonths
+        .replace(/\sE\s/gi, ',')
+        .split(/[,\s]+/)
+        .filter(m => m.trim())
+        .map(m => parseInt(m.trim()) - 1)
+        .filter(m => !isNaN(m) && m >= 0 && m < 12);
+    }
+    
+    const unitPrice = asset.unitPrice ? parseFloat(asset.unitPrice.toString()) : 0;
     let annualCoupon = 0;
     
     // Calculate annual coupon based on indexer type
@@ -203,43 +236,48 @@ function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.6
     
     let couponValue = 0;
     
-    // Calculate coupon value based on frequency
-    switch (asset.frequency.toLowerCase()) {
-      case 'monthly':
-        couponValue = annualCoupon / 12;
-        // Monthly coupons occur every month
-        for (let i = 0; i < 12; i++) {
-          monthlyCoupons[i] += couponValue;
+    // Calculate coupon value based on frequency (handle Portuguese frequency names)
+    const frequency = asset.frequency.toLowerCase();
+    const isMonthly = frequency.includes('mensal') || frequency.includes('monthly');
+    const isQuarterly = frequency.includes('trimestral') || frequency.includes('quarterly');
+    const isSemiannual = frequency.includes('semestral') || frequency.includes('semiannual');
+    const isAnnual = frequency.includes('anual') || frequency.includes('annual');
+    
+    console.log("Annual coupon calculated:", annualCoupon, "for frequency:", frequency);
+    
+    if (isMonthly) {
+      couponValue = annualCoupon / 12;
+      // Monthly coupons occur every month
+      for (let i = 0; i < 12; i++) {
+        monthlyCoupons[i] += couponValue;
+      }
+    } else if (isQuarterly) {
+      couponValue = annualCoupon / 4;
+      // Quarterly coupons occur in specified months
+      couponMonths.forEach(month => {
+        if (month >= 0 && month < 12) {
+          monthlyCoupons[month] += couponValue;
         }
-        break;
-      case 'quarterly':
-        couponValue = annualCoupon / 4;
-        // Quarterly coupons occur in specified months
-        couponMonths.forEach(month => {
-          if (month >= 0 && month < 12) {
-            monthlyCoupons[month] += couponValue;
-          }
-        });
-        break;
-      case 'semiannual':
-        couponValue = annualCoupon / 2;
-        // Semiannual coupons occur in specified months
-        couponMonths.forEach(month => {
-          if (month >= 0 && month < 12) {
-            monthlyCoupons[month] += couponValue;
-          }
-        });
-        break;
-      case 'annual':
-        couponValue = annualCoupon;
-        // Annual coupons occur in specified months
-        couponMonths.forEach(month => {
-          if (month >= 0 && month < 12) {
-            monthlyCoupons[month] += couponValue;
-          }
-        });
-        break;
+      });
+    } else if (isSemiannual) {
+      couponValue = annualCoupon / 2;
+      // Semiannual coupons occur in specified months
+      couponMonths.forEach(month => {
+        if (month >= 0 && month < 12) {
+          monthlyCoupons[month] += couponValue;
+        }
+      });
+    } else if (isAnnual) {
+      couponValue = annualCoupon;
+      // Annual coupons occur in specified months
+      couponMonths.forEach(month => {
+        if (month >= 0 && month < 12) {
+          monthlyCoupons[month] += couponValue;
+        }
+      });
     }
+    
+    console.log("Coupon value per payment:", couponValue, "applied to months:", couponMonths);
   });
   
   return monthlyCoupons;
