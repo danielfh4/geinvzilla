@@ -447,6 +447,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Assets cleanup route
+  app.delete("/api/assets/clear", requireAdmin, async (req, res) => {
+    try {
+      await storage.clearAllAssets();
+      console.log("Assets cleared successfully");
+      res.json({ message: "Assets cleared successfully" });
+    } catch (error) {
+      console.error("Assets clear error:", error);
+      res.status(500).json({ message: "Failed to clear assets" });
+    }
+  });
+
   app.post("/api/uploads/pdf", requireAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {

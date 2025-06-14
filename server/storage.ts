@@ -81,6 +81,7 @@ export interface IStorage {
   bulkCreateEconomicParameters(parameters: InsertEconomicParameter[]): Promise<EconomicParameter[]>;
   
   // Database cleanup
+  clearAllAssets(): Promise<void>;
   clearAllData(): Promise<void>;
 }
 
@@ -339,6 +340,12 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return result;
+  }
+
+  async clearAllAssets(): Promise<void> {
+    // Delete only asset-related data
+    await db.delete(portfolioAssets);
+    await db.delete(assets);
   }
 
   async clearAllData(): Promise<void> {
