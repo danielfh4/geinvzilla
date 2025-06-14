@@ -43,6 +43,7 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
+  const [portfolioAssetsCache] = useState(new Map());
 
   const form = useForm<PortfolioFormData>({
     resolver: zodResolver(portfolioSchema),
@@ -171,24 +172,86 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
     }
   };
 
-  const getPortfolioMetrics = (portfolio: Portfolio) => {
-    // For detailed view, use loaded portfolio assets
-    if (portfolioAssetsData && selectedPortfolio?.id === portfolio.id) {
-      return calculatePortfolioMetrics(
-        portfolioAssetsData.map((pa: any) => ({
-          asset: pa.asset,
-          quantity: parseFloat(pa.quantity),
-          value: parseFloat(pa.value),
-        }))
-      );
-    }
-    
-    // Fallback to stored values
-    return {
-      totalAssets: 0,
-      totalValue: parseFloat(portfolio.totalValue || "0"),
-      weightedRate: parseFloat(portfolio.weightedRate || "0"),
-    };
+  // Component for portfolio row with its own metrics calculation
+  const PortfolioRow = ({ portfolio }: { portfolio: Portfolio }) => {
+    const { data: portfolioAssets } = useQuery({
+      queryKey: [`/api/portfolios/${portfolio.id}/assets`],
+      enabled: !!portfolio.id,
+    });
+
+    const metrics = portfolioAssets && Array.isArray(portfolioAssets) && portfolioAssets.length > 0 
+      ? calculatePortfolioMetrics(
+          portfolioAssets.map((pa: any) => ({
+            asset: pa.asset,
+            quantity: parseFloat(pa.quantity),
+            value: parseFloat(pa.value),
+          }))
+        )
+      : { totalValue: 0, weightedRate: 0 };
+
+    return (
+      <TableRow key={portfolio.id}>
+        <TableCell>
+          <div>
+            <div className="font-medium">{portfolio.name}</div>
+          </div>
+        </TableCell>
+        <TableCell className="max-w-xs">
+          <div className="text-sm text-muted-foreground truncate">
+            {portfolio.description || "-"}
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className="font-medium">
+            {formatCurrency(metrics.totalValue)}
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className="font-medium">
+            {metrics.weightedRate.toFixed(2)}%
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className="text-sm text-muted-foreground">
+            {formatDistanceToNow(new Date(portfolio.createdAt), { 
+              addSuffix: true, 
+              locale: ptBR 
+            })}
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge className={portfolio.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+            {portfolio.isActive ? "Ativa" : "Inativa"}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleViewPortfolio(portfolio)}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleEditPortfolio(portfolio)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDeletePortfolio(portfolio.id)}
+              className="text-red-600 hover:text-red-800"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
   };
 
   const formatCurrency = (value: number) => {
@@ -361,72 +424,9 @@ export function Portfolios({ onEditPortfolio }: PortfoliosProps = {}) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {portfoliosArray.map((portfolio: Portfolio) => {
-                      const metrics = getPortfolioMetrics(portfolio);
-                      
-                      return (
-                        <TableRow key={portfolio.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{portfolio.name}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="max-w-xs">
-                            <div className="text-sm text-muted-foreground truncate">
-                              {portfolio.description || "-"}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">
-                              {formatCurrency(metrics.totalValue)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">
-                              {metrics.weightedRate.toFixed(2)}%
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-muted-foreground">
-                              {formatDistanceToNow(new Date(portfolio.createdAt), { 
-                                addSuffix: true, 
-                                locale: ptBR 
-                              })}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={portfolio.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                              {portfolio.isActive ? "Ativa" : "Inativa"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewPortfolio(portfolio)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditPortfolio(portfolio)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeletePortfolio(portfolio.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {portfoliosArray.map((portfolio: Portfolio) => (
+                      <PortfolioRow key={portfolio.id} portfolio={portfolio} />
+                    ))}
                   </TableBody>
                 </Table>
               </div>
