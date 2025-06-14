@@ -49,8 +49,12 @@ export interface IStorage {
     type?: string;
     indexer?: string;
     minRate?: number;
+    maxRate?: number;
     minValue?: number;
+    maxValue?: number;
     issuer?: string;
+    couponMonth?: string;
+    couponMonths?: number[];
   }): Promise<Asset[]>;
   
   // Portfolio operations
@@ -175,12 +179,35 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(assets.indexer, filters.indexer));
     }
     
+    if (filters.minRate) {
+      conditions.push(sql`CAST(${assets.rate} AS DECIMAL) >= ${filters.minRate}`);
+    }
+    
+    if (filters.maxRate) {
+      conditions.push(sql`CAST(${assets.rate} AS DECIMAL) <= ${filters.maxRate}`);
+    }
+    
     if (filters.minValue) {
       conditions.push(sql`${assets.minValue} >= ${filters.minValue}`);
     }
     
+    if (filters.maxValue) {
+      conditions.push(sql`${assets.minValue} <= ${filters.maxValue}`);
+    }
+    
     if (filters.issuer) {
       conditions.push(sql`${assets.issuer} ILIKE ${'%' + filters.issuer + '%'}`);
+    }
+    
+    if (filters.couponMonth) {
+      conditions.push(sql`${assets.couponMonths} ILIKE ${'%' + filters.couponMonth + '%'}`);
+    }
+    
+    if (filters.couponMonths && filters.couponMonths.length > 0) {
+      const monthConditions = filters.couponMonths.map(month => 
+        sql`${assets.couponMonths} ILIKE ${'%' + month.toString().padStart(2, '0') + '%'}`
+      );
+      conditions.push(sql`(${sql.join(monthConditions, sql` OR `)})`);
     }
     
     if (conditions.length > 0) {
