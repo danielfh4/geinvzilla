@@ -1,6 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { db, pool } from "./db";
 import bcrypt from "bcrypt";
 import {
   users,
@@ -23,12 +22,7 @@ import {
   type InsertUpload,
 } from "@shared/schema";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set");
-}
 
-const sql_client = neon(process.env.DATABASE_URL);
-const db = drizzle(sql_client);
 
 export interface IStorage {
   // User operations
