@@ -165,47 +165,80 @@ function extractNumericRate(rateString: string): number {
   return 0;
 }
 
-function calculateMonthlyCoupons(selectedAssets: SelectedAsset[]): number[] {
+function calculateMonthlyCoupons(selectedAssets: SelectedAsset[], cdiRate = 14.65): number[] {
   const monthlyCoupons = new Array(12).fill(0);
-
-  selectedAssets.forEach(sa => {
-    const annualRate = extractNumericRate(sa.asset.rate) / 100;
-    const monthlyRate = annualRate / 12;
-    const monthlyCoupon = sa.value * monthlyRate;
-
-    // Distribute coupons based on frequency
-    const frequency = sa.asset.frequency || "monthly";
+  
+  selectedAssets.forEach(({ asset, quantity, value }) => {
+    if (!asset.couponMonths || !asset.frequency || !asset.unitPrice) return;
     
-    switch (frequency.toLowerCase()) {
-      case "monthly":
-        // Every month
-        for (let i = 0; i < 12; i++) {
-          monthlyCoupons[i] += monthlyCoupon;
-        }
+    const couponMonths = asset.couponMonths.split(',').map(m => parseInt(m.trim()) - 1);
+    const unitPrice = parseFloat(asset.unitPrice.toString());
+    let annualCoupon = 0;
+    
+    // Calculate annual coupon based on indexer type
+    switch (asset.indexer.toUpperCase()) {
+      case 'IPCA':
+        // IPCA: Only use asset rate * unit price
+        annualCoupon = (extractNumericRate(asset.rate) / 100) * unitPrice * quantity;
         break;
-      case "quarterly":
-        // Every 3 months
-        for (let i = 0; i < 12; i += 3) {
-          monthlyCoupons[i] += monthlyCoupon * 3;
-        }
+      case 'PREFIXADO':
+        // PREFIXADO: Asset rate * unit price
+        annualCoupon = (extractNumericRate(asset.rate) / 100) * unitPrice * quantity;
         break;
-      case "semiannual":
-        // Every 6 months
-        monthlyCoupons[0] += monthlyCoupon * 6;
-        monthlyCoupons[6] += monthlyCoupon * 6;
+      case '%CDI':
+        // %CDI: Asset rate% * CDI rate * unit price
+        annualCoupon = (extractNumericRate(asset.rate) / 100) * (cdiRate / 100) * unitPrice * quantity;
         break;
-      case "annual":
-        // Once a year
-        monthlyCoupons[11] += monthlyCoupon * 12;
+      case 'CDI+':
+        // CDI+: (CDI + asset rate) * unit price
+        annualCoupon = ((cdiRate / 100) + (extractNumericRate(asset.rate) / 100)) * unitPrice * quantity;
         break;
       default:
-        // Default to monthly
+        // Default case - use asset rate
+        annualCoupon = (extractNumericRate(asset.rate) / 100) * unitPrice * quantity;
+    }
+    
+    let couponValue = 0;
+    
+    // Calculate coupon value based on frequency
+    switch (asset.frequency.toLowerCase()) {
+      case 'monthly':
+        couponValue = annualCoupon / 12;
+        // Monthly coupons occur every month
         for (let i = 0; i < 12; i++) {
-          monthlyCoupons[i] += monthlyCoupon;
+          monthlyCoupons[i] += couponValue;
         }
+        break;
+      case 'quarterly':
+        couponValue = annualCoupon / 4;
+        // Quarterly coupons occur in specified months
+        couponMonths.forEach(month => {
+          if (month >= 0 && month < 12) {
+            monthlyCoupons[month] += couponValue;
+          }
+        });
+        break;
+      case 'semiannual':
+        couponValue = annualCoupon / 2;
+        // Semiannual coupons occur in specified months
+        couponMonths.forEach(month => {
+          if (month >= 0 && month < 12) {
+            monthlyCoupons[month] += couponValue;
+          }
+        });
+        break;
+      case 'annual':
+        couponValue = annualCoupon;
+        // Annual coupons occur in specified months
+        couponMonths.forEach(month => {
+          if (month >= 0 && month < 12) {
+            monthlyCoupons[month] += couponValue;
+          }
+        });
+        break;
     }
   });
-
+  
   return monthlyCoupons;
 }
 

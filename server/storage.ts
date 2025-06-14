@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import { eq, and, desc, sql } from "drizzle-orm";
+import bcrypt from "bcrypt";
 import {
   users,
   assets,
@@ -105,11 +106,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
-    const updateData = { ...user };
+    const updateData: any = { ...user, updatedAt: new Date() };
     if (user.password) {
       updateData.password = await bcrypt.hash(user.password, 10);
     }
-    updateData.updatedAt = new Date();
     
     const result = await db
       .update(users)
