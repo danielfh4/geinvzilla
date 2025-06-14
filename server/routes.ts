@@ -873,14 +873,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Remove currency symbols
                 cleanValue = cleanValue.replace(/[R$\s]/g, '');
                 
-                // Handle Brazilian format: if there's a comma after digits, it's decimal separator
-                if (/\d+,\d{1,2}$/.test(cleanValue)) {
-                  // Brazilian format: 1.234,56 -> 1234.56
-                  cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
-                } else if (/\d+\.\d{1,2}$/.test(cleanValue)) {
-                  // Already in correct format: 1234.56
-                  cleanValue = cleanValue.replace(/,/g, '');
+                // Handle different decimal formats
+                if (cleanValue.includes(',') && cleanValue.includes('.')) {
+                  // Brazilian format with thousands separator: 1.234,56 -> 1234.56
+                  const parts = cleanValue.split(',');
+                  if (parts.length === 2 && parts[1].length <= 2) {
+                    cleanValue = parts[0].replace(/\./g, '') + '.' + parts[1];
+                  }
+                } else if (cleanValue.includes(',') && !cleanValue.includes('.')) {
+                  // Only comma as decimal separator: 1234,56 -> 1234.56
+                  if (/\d+,\d{1,2}$/.test(cleanValue)) {
+                    cleanValue = cleanValue.replace(',', '.');
+                  }
                 }
+                // If only dots, assume it's already in correct format
                 
                 numericValue = parseFloat(cleanValue);
               } else {

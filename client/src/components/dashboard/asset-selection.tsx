@@ -750,11 +750,10 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                               if (!asset.unitPrice && !asset.minValue) return '-';
                               
                               const price = asset.unitPrice || asset.minValue;
-                              if (!price || price === 'null') return '-';
+                              if (!price || price === 'null' || price === '') return '-';
                               
-                              const numericPrice = typeof price === 'string' ? 
-                                parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.')) : 
-                                parseFloat(price);
+                              // Convert string to number properly
+                              const numericPrice = parseFloat(price);
                               
                               if (isNaN(numericPrice) || numericPrice <= 0) return '-';
                               
