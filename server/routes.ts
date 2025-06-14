@@ -772,6 +772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               'DATA VENCIMENTO', 'Data Vencimento', 'data_vencimento'
             ])),
             minValue: "1", // Minimum is always 1 unit
+            importedAt: fileModificationDate, // Use file modification date
             frequency: String(findColumnValue([
               'FREQUENCIA', 'Frequencia', 'frequencia', 'FREQUENCY', 'Frequency', 'frequency',
               'FREQ CUPOM', 'Freq Cupom', 'freq_cupom', 'PERIODICIDADE', 'Periodicidade', 'periodicidade'

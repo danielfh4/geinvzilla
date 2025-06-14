@@ -741,7 +741,16 @@ export function AssetSelection({ editingPortfolioId, onPortfolioSaved }: AssetSe
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Comissão</Label>
-                        <div className="font-medium">0%</div>
+                        <div className="font-medium">{selectedAssetForDetail.remPercentage ? `${parseFloat(selectedAssetForDetail.remPercentage).toFixed(2)}%` : '0%'}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Data dos Dados</Label>
+                        <div className="font-medium">
+                          {selectedAssetForDetail.importedAt ? 
+                            new Date(selectedAssetForDetail.importedAt).toLocaleDateString('pt-BR') : 
+                            new Date(selectedAssetForDetail.createdAt).toLocaleDateString('pt-BR')
+                          }
+                        </div>
                       </div>
                     </div>
                   </CardContent>

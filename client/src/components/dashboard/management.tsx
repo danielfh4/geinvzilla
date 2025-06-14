@@ -383,10 +383,22 @@ export function Management() {
                     <div>
                       <p className="text-sm font-medium text-neutral-900">{upload.originalName}</p>
                       <p className="text-xs text-neutral-500">
-                        {formatDistanceToNow(new Date(upload.createdAt), { 
-                          addSuffix: true, 
-                          locale: ptBR 
-                        })} • {upload.recordsImported || 0} registros importados
+                        {upload.fileModifiedAt ? (
+                          <>
+                            Dados de {new Date(upload.fileModifiedAt).toLocaleDateString('pt-BR')} • 
+                            Importado {formatDistanceToNow(new Date(upload.createdAt), { 
+                              addSuffix: true, 
+                              locale: ptBR 
+                            })} • {upload.recordsImported || 0} registros
+                          </>
+                        ) : (
+                          <>
+                            {formatDistanceToNow(new Date(upload.createdAt), { 
+                              addSuffix: true, 
+                              locale: ptBR 
+                            })} • {upload.recordsImported || 0} registros importados
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
