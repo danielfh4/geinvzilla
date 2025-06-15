@@ -1,7 +1,17 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import "../types/global";
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
-import { insertUserSchema, insertAssetSchema, insertPortfolioSchema, insertPortfolioAssetSchema, assets, portfolios, portfolioAssets, uploads } from ./schema;
+import {
+  insertUserSchema,
+  insertAssetSchema,
+  insertPortfolioSchema,
+  insertPortfolioAssetSchema,
+  assets,
+  portfolios,
+  portfolioAssets,
+  uploads
+} from "./schema";
 import bcrypt from "bcrypt";
 import multer from "multer";
 import XLSX from "xlsx";
@@ -16,708 +26,339 @@ interface AuthenticatedRequest extends Request {
 // Configure multer for file uploads
 const upload = multer({
   dest: "uploads/",
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.xlsx', '.xls', '.pdf'];
     const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only Excel (.xlsx, .xls) and PDF files are allowed.'));
-    }
+    if (allowedTypes.includes(ext)) cb(null, true);
+    else cb(new Error('Invalid file type. Only Excel (.xlsx, .xls) and PDF files are allowed.'));
   },
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-
   // Authentication middleware
   const requireAuth = (req: any, res: any, next: any) => {
-    // Check session first
-    if (req.session?.userId) {
-      return next();
-    }
-    
-    // Check Authorization header
+    if (req.session?.userId) { next(); return; }
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const decoded = Buffer.from(authHeader.substring(7), 'base64').toString();
+        const [id] = decoded.split(':');
+        if (!isNaN(Number(id))) { req.session.userId = id; next(); return; }
+      } catch {}
+    }
+    const token = req.cookies?.auth_token;
+    if (token) {
       try {
         const decoded = Buffer.from(token, 'base64').toString();
-        const [userId] = decoded.split(':');
-        if (userId && !isNaN(parseInt(userId))) {
-          req.session.userId = parseInt(userId);
-          return next();
-        }
-      } catch (e) {
-        // Invalid token, continue to check cookie
-      }
+        const [id] = decoded.split(':');
+        if (!isNaN(Number(id))) { req.session.userId = Number(id); next(); return; }
+      } catch {}
     }
-    
-    // Check auth token cookie as fallback
-    const authToken = req.cookies?.auth_token;
-    if (authToken) {
-      try {
-        const decoded = Buffer.from(authToken, 'base64').toString();
-        const [userId] = decoded.split(':');
-        if (userId && !isNaN(parseInt(userId))) {
-          req.session.userId = parseInt(userId);
-          return next();
-        }
-      } catch (e) {
-        // Invalid token, continue to reject
-      }
-    }
-    
-    return res.status(401).json({ message: "Authentication required" });
+    res.status(401).json({ message: "Authentication required" });
   };
 
   const requireAdmin = async (req: any, res: any, next: any) => {
-    // Use the same auth logic as requireAuth
-    let userId = req.session?.userId;
-    
-    if (!userId) {
-      // Check Authorization header
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        try {
-          const decoded = Buffer.from(token, 'base64').toString();
-          const [userIdStr] = decoded.split(':');
-          if (userIdStr && !isNaN(parseInt(userIdStr))) {
-            userId = parseInt(userIdStr);
-            req.session.userId = userId;
-          }
-        } catch (e) {
-          // Invalid token
-        }
-      }
-      
-      // Check auth token cookie as fallback
-      if (!userId) {
-        const authToken = req.cookies?.auth_token;
-        if (authToken) {
-          try {
-            const decoded = Buffer.from(authToken, 'base64').toString();
-            const [userIdStr] = decoded.split(':');
-            if (userIdStr && !isNaN(parseInt(userIdStr))) {
-              userId = parseInt(userIdStr);
-              req.session.userId = userId;
-            }
-          } catch (e) {
-            // Invalid token
-          }
-        }
-      }
-    }
-    
-    if (!userId) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-    
+    const raw = req.session?.userId;
+    const userId = Number(raw);
+    if (isNaN(userId)) { res.status(401).json({ message: "Authentication required" }); return; }
     const user = await storage.getUser(userId);
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    
-    (req as any).user = user;
+    if (!user || user.role !== 'admin') { res.status(403).json({ message: "Admin access required" }); return; }
+    req.user = user;
     next();
   };
 
-  // Auth routes
-  app.post("/api/auth/login", async (req: any, res: any) => {
+  // Auth
+  app.post("/api/auth/login", async (req, res): Promise<void> => {
     try {
       const { username, password } = req.body;
-      
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
-      }
-
+      if (!username || !password) { res.status(400).json({ message: "Username and password are required" }); return; }
       const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      req.session.userId = user.id;
-      
-      // Also set a simple token for frontend compatibility
+      if (!user) { res.status(401).json({ message: "Invalid credentials" }); return; }
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) { res.status(401).json({ message: "Invalid credentials" }); return; }
+      req.session.userId = user.id.toString();
       const token = Buffer.from(`${user.id}:${user.username}:${Date.now()}`).toString('base64');
-      res.cookie('auth_token', token, {
-        httpOnly: false,
-        secure: false,
-        maxAge: 1000 * 60 * 60 * 24,
-        sameSite: 'lax'
-      });
-      
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword, token });
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
+      res.cookie('auth_token', token, { httpOnly: false, secure: false, maxAge: 86400000, sameSite: 'lax' });
+      const { password: _, ...u } = user;
+      res.json({ user: u, token });
+    } catch (e) { console.error(e); res.status(500).json({ message: "Internal server error" }); }
   });
 
-  app.post("/api/auth/logout", (req: any, res: any) => {
+  app.post("/api/auth/logout", (req, res): void => {
     req.session.destroy((err: any) => {
-      if (err) {
-        return res.status(500).json({ message: "Failed to logout" });
-      }
+      if (err) { res.status(500).json({ message: "Failed to logout" }); return; }
       res.json({ message: "Logged out successfully" });
     });
   });
 
-  app.get("/api/auth/me", async (req: Request, res: Response) => {
+  app.get("/api/auth/me", requireAuth, async (req, res): Promise<void> => {
     try {
-      console.log("Session check:", req.session);
-      if (!req.session?.userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const user = await storage.getUser(req.session.userId);
-      if (!user) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
-    } catch (error) {
-      console.error("Get user error:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
+      const userId = Number(req.session.userId);
+      if (isNaN(userId)) { res.status(401).json({ message: "Not authenticated" }); return; }
+      const user = await storage.getUser(userId);
+      if (!user) { res.status(401).json({ message: "User not found" }); return; }
+      const { password: _, ...u } = user;
+      res.json({ user: u });
+    } catch (e) { console.error(e); res.status(500).json({ message: "Internal server error" }); }
   });
 
-  // Asset routes
-  app.get("/api/assets", requireAuth, async (req: Request, res: Response) => {
+  // Assets
+  app.get("/api/assets", requireAuth, async (req, res): Promise<void> => {
     try {
-      const { type, indexer, minRate, couponMonth, couponMonths, issuer, asset } = req.query;
-      
       const filters: any = {};
-      if (type && type !== "all") filters.type = type as string;
-      if (indexer && indexer !== "all") filters.indexer = indexer as string;
+      const { type, indexer, minRate, couponMonth, couponMonths, issuer, asset } = req.query;
+      if (type && type !== 'all') filters.type = type;
+      if (indexer && indexer !== 'all') filters.indexer = indexer;
       if (minRate) filters.minRate = parseFloat(minRate as string);
-      if (issuer) filters.issuer = issuer as string;
-      if (asset) filters.asset = asset as string;
-      if (couponMonth && couponMonth !== "all") filters.couponMonth = couponMonth as string;
+      if (issuer) filters.issuer = issuer;
+      if (asset) filters.asset = asset;
+      if (couponMonth && couponMonth !== 'all') filters.couponMonth = couponMonth;
       if (couponMonths) {
-        const monthsArray = (couponMonths as string).split(',').map(m => parseInt(m.trim())).filter(m => !isNaN(m));
-        if (monthsArray.length > 0) filters.couponMonths = monthsArray;
+        const arr = (couponMonths as string).split(',').map(n=>parseInt(n)).filter(n=>!isNaN(n));
+        if (arr.length) filters.couponMonths = arr;
       }
-      
-      const assets = Object.keys(filters).length > 0 
-        ? await storage.searchAssets(filters)
-        : await storage.getAllAssets();
-        
-      res.json(assets);
-    } catch (error) {
-      console.error("Get assets error:", error);
-      res.status(500).json({ message: "Failed to fetch assets" });
-    }
+      const list = Object.keys(filters).length ? await storage.searchAssets(filters) : await storage.getAllAssets();
+      res.json(list);
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to fetch assets" }); }
   });
 
-  app.get("/api/assets/:code/history", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/assets/:code/history", requireAuth, async (req, res): Promise<void> => {
     try {
-      const { code } = req.params;
-      const history = await storage.getAssetHistory(code);
+      const history = await storage.getAssetHistory(req.params.code);
       res.json(history);
-    } catch (error) {
-      console.error("Get asset history error:", error);
-      res.status(500).json({ message: "Failed to fetch asset history" });
-    }
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to fetch asset history" }); }
   });
 
-  app.post("/api/assets", requireAdmin, async (req: Request, res: Response) => {
+  app.post("/api/assets", requireAdmin, async (req, res): Promise<void> => {
     try {
-      const assetData = insertAssetSchema.parse(req.body);
-      const asset = await storage.createAsset(assetData);
+      const data = insertAssetSchema.parse(req.body);
+      const asset = await storage.createAsset(data);
       res.status(201).json(asset);
-    } catch (error) {
-      console.error("Create asset error:", error);
-      res.status(400).json({ message: "Invalid asset data" });
-    }
+    } catch (e) { console.error(e); res.status(400).json({ message: "Invalid asset data" }); }
   });
 
-  app.put("/api/assets/:id", requireAdmin, async (req: Request, res: Response) => {
+  app.put("/api/assets/:id", requireAdmin, async (req, res): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-      const assetData = insertAssetSchema.partial().parse(req.body);
-      const asset = await storage.updateAsset(id, assetData);
-      
-      if (!asset) {
-        return res.status(404).json({ message: "Asset not found" });
-      }
-      
+      const id = parseInt(req.params.id, 10);
+      const data = insertAssetSchema.partial().parse(req.body);
+      const asset = await storage.updateAsset(id, data);
+      if (!asset) { res.status(404).json({ message: "Asset not found" }); return; }
       res.json(asset);
-    } catch (error) {
-      console.error("Update asset error:", error);
-      res.status(400).json({ message: "Invalid asset data" });
-    }
+    } catch (e) { console.error(e); res.status(400).json({ message: "Invalid asset data" }); }
   });
 
-  // Assets cleanup route - MUST be before the :id route
-  app.delete("/api/assets/clear", requireAdmin, async (req: Request, res: Response) => {
-    try {
-      await storage.clearAllAssets();
-      console.log("Assets cleared successfully");
-      res.json({ message: "Assets cleared successfully" });
-    } catch (error) {
-      console.error("Assets clear error:", error);
-      res.status(500).json({ message: "Failed to clear assets" });
-    }
+  app.delete("/api/assets/clear", requireAdmin, async (req, res): Promise<void> => {
+    try { await storage.clearAllAssets(); res.json({ message: "Assets cleared successfully" }); }
+    catch (e) { console.error(e); res.status(500).json({ message: "Failed to clear assets" }); }
   });
 
-  app.delete("/api/assets/:id", requireAdmin, async (req: Request, res: Response) => {
+  app.delete("/api/assets/:id", requireAdmin, async (req, res): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-      
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid asset ID" });
-      }
-      
-      const success = await storage.deleteAsset(id);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Asset not found" });
-      }
-      
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) { res.status(400).json({ message: "Invalid asset ID" }); return; }
+      const ok = await storage.deleteAsset(id);
+      if (!ok) { res.status(404).json({ message: "Asset not found" }); return; }
       res.json({ message: "Asset deleted successfully" });
-    } catch (error) {
-      console.error("Delete asset error:", error);
-      res.status(500).json({ message: "Failed to delete asset" });
-    }
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to delete asset" }); }
   });
 
-  // Portfolio routes
-  app.get("/api/portfolios", requireAuth, async (req: Request, res: Response) => {
+  // Portfolios
+  app.get("/api/portfolios", requireAuth, async (req, res): Promise<void> => {
     try {
-      const portfolios = await storage.getUserPortfolios(req.session.userId);
-      res.json(portfolios);
-    } catch (error) {
-      console.error("Get portfolios error:", error);
-      res.status(500).json({ message: "Failed to fetch portfolios" });
-    }
+      const id = Number(req.session.userId);
+      const list = await storage.getUserPortfolios(id);
+      res.json(list);
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to fetch portfolios" }); }
   });
 
-  app.post("/api/portfolios", requireAuth, async (req: Request, res: Response) => {
+  app.post("/api/portfolios", requireAuth, async (req, res): Promise<void> => {
     try {
-      const portfolioData = insertPortfolioSchema.parse({
-        ...req.body,
-        userId: req.session.userId,
-      });
-      const portfolio = await storage.createPortfolio(portfolioData);
-      res.status(201).json(portfolio);
-    } catch (error) {
-      console.error("Create portfolio error:", error);
-      res.status(400).json({ message: "Invalid portfolio data" });
-    }
+      const id = Number(req.session.userId);
+      const data = insertPortfolioSchema.parse({ ...req.body, userId: id });
+      const p = await storage.createPortfolio(data);
+      res.status(201).json(p);
+    } catch (e) { console.error(e); res.status(400).json({ message: "Invalid portfolio data" }); }
   });
 
-  app.get("/api/portfolios/:id/assets", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/portfolios/:id/assets", requireAuth, async (req, res): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-      const portfolio = await storage.getPortfolioById(id);
-      
-      if (!portfolio) {
-        return res.status(404).json({ message: "Portfolio not found" });
-      }
-      
-      // Check if user owns the portfolio
-      if (portfolio.userId !== req.session.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const assets = await storage.getPortfolioAssets(id);
-      res.json(assets);
-    } catch (error) {
-      console.error("Get portfolio assets error:", error);
-      res.status(500).json({ message: "Failed to fetch portfolio assets" });
-    }
+      const pid = parseInt(req.params.id, 10);
+      const port = await storage.getPortfolioById(pid);
+      if (!port) { res.status(404).json({ message: "Portfolio not found" }); return; }
+      if (port.userId !== Number(req.session.userId)) { res.status(403).json({ message: "Access denied" }); return; }
+      const list = await storage.getPortfolioAssets(pid);
+      res.json(list);
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to fetch portfolio assets" }); }
   });
 
-  app.get("/api/portfolios/:id", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/portfolios/:id", requireAuth, async (req, res): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-      const portfolio = await storage.getPortfolioById(id);
-      
-      if (!portfolio) {
-        return res.status(404).json({ message: "Portfolio not found" });
-      }
-      
-      if (portfolio.userId !== req.session.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      res.json(portfolio);
-    } catch (error) {
-      console.error("Get portfolio error:", error);
-      res.status(500).json({ message: "Failed to fetch portfolio" });
-    }
+      const pid = parseInt(req.params.id, 10);
+      const port = await storage.getPortfolioById(pid);
+      if (!port) { res.status(404).json({ message: "Portfolio not found" }); return; }
+      if (port.userId !== Number(req.session.userId)) { res.status(403).json({ message: "Access denied" }); return; }
+      res.json(port);
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to fetch portfolio" }); }
   });
 
-  app.put("/api/portfolios/:id", requireAuth, async (req: Request, res: Response) => {
+  app.put("/api/portfolios/:id", requireAuth, async (req, res): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-      const portfolio = await storage.getPortfolioById(id);
-      
-      if (!portfolio) {
-        return res.status(404).json({ message: "Portfolio not found" });
-      }
-      
-      if (portfolio.userId !== req.session.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const portfolioData = insertPortfolioSchema.partial().parse(req.body);
-      const updatedPortfolio = await storage.updatePortfolio(id, portfolioData);
-      
-      if (!updatedPortfolio) {
-        return res.status(404).json({ message: "Portfolio not found" });
-      }
-      
-      res.json(updatedPortfolio);
-    } catch (error) {
-      console.error("Update portfolio error:", error);
-      res.status(400).json({ message: "Invalid portfolio data" });
-    }
+      const pid = parseInt(req.params.id, 10);
+      const port = await storage.getPortfolioById(pid);
+      if (!port) { res.status(404).json({ message: "Portfolio not found" }); return; }
+      if (port.userId !== Number(req.session.userId)) { res.status(403).json({ message: "Access denied" }); return; }
+      const data = insertPortfolioSchema.partial().parse(req.body);
+      const updated = await storage.updatePortfolio(pid, data);
+      if (!updated) { res.status(404).json({ message: "Portfolio not found" }); return; }
+      res.json(updated);
+    } catch (e) { console.error(e); res.status(400).json({ message: "Invalid portfolio data" }); }
   });
 
-  app.post("/api/portfolios/:id/assets", requireAuth, async (req: Request, res: Response) => {
+  app.post("/api/portfolios/:id/assets", requireAuth, async (req, res): Promise<void> => {
     try {
-      const portfolioId = parseInt(req.params.id);
-      
-      if (isNaN(portfolioId) || portfolioId <= 0) {
-        return res.status(400).json({ message: "Invalid portfolio ID" });
-      }
-      
-      const portfolio = await storage.getPortfolioById(portfolioId);
-      
-      if (!portfolio) {
-        return res.status(404).json({ message: "Portfolio not found" });
-      }
-      
-      if (portfolio.userId !== req.session.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const portfolioAssetData = insertPortfolioAssetSchema.parse({
-        ...req.body,
-        portfolioId,
-      });
-      
-      const portfolioAsset = await storage.addAssetToPortfolio(portfolioAssetData);
-      res.status(201).json(portfolioAsset);
-    } catch (error) {
-      console.error("Add asset to portfolio error:", error);
-      res.status(400).json({ message: "Invalid portfolio asset data" });
-    }
+      const pid = parseInt(req.params.id, 10);
+      const port = await storage.getPortfolioById(pid);
+      if (!port) { res.status(404).json({ message: "Portfolio not found" }); return; }
+      if (port.userId !== Number(req.session.userId)) { res.status(403).json({ message: "Access denied" }); return; }
+      const body = insertPortfolioAssetSchema.parse({ ...req.body, portfolioId: pid });
+      const pa = await storage.addAssetToPortfolio(body);
+      res.status(201).json(pa);
+    } catch (e) { console.error(e); res.status(400).json({ message: "Invalid portfolio asset data" }); }
   });
 
-  app.delete("/api/portfolios/:portfolioId/assets/:assetId", requireAuth, async (req: Request, res: Response) => {
+  app.delete("/api/portfolios/:portfolioId/assets/:assetId", requireAuth, async (req, res): Promise<void> => {
     try {
-      const portfolioId = parseInt(req.params.portfolioId);
-      const assetId = parseInt(req.params.assetId);
-      
-      const portfolio = await storage.getPortfolioById(portfolioId);
-      
-      if (!portfolio) {
-        return res.status(404).json({ message: "Portfolio not found" });
-      }
-      
-      if (portfolio.userId !== req.session.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const success = await storage.removeAssetFromPortfolio(portfolioId, assetId);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Asset not found in portfolio" });
-      }
-      
-      res.json({ message: "Asset removed from portfolio successfully" });
-    } catch (error) {
-      console.error("Remove asset from portfolio error:", error);
-      res.status(500).json({ message: "Failed to remove asset from portfolio" });
-    }
+      const pid = parseInt(req.params.portfolioId, 10);
+      const aid = parseInt(req.params.assetId, 10);
+      const port = await storage.getPortfolioById(pid);
+      if (!port) { res.status(404).json({ message: "Portfolio not found" }); return; }
+      if (port.userId !== Number(req.session.userId)) { res.status(403).json({ message: "Access denied" }); return; }
+      const ok = await storage.removeAssetFromPortfolio(pid, aid);
+      if (!ok) { res.status(404).json({ message: "Asset not found in portfolio" }); return; }
+      res.json({ message: "Asset removed successfully" });
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to remove asset" }); }
   });
 
-  // File upload routes
-  app.post("/api/uploads/excel", requireAdmin, upload.single("file"), async (req: Request, res: Response) => {
+  // File uploads
+  app.post("/api/uploads/excel", requireAdmin, upload.single("file"), async (req, res): Promise<void> => {
     try {
-      if (!(req as any).file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      // Extract file modification date from the client-side
-      // The browser doesn't provide lastModified in the standard upload, 
-      // so we'll use a custom approach
-      let fileModifiedAt = new Date();
-      
-      // Check if the client sent the last modified timestamp
-      if (req.body.lastModified && !isNaN(parseInt(req.body.lastModified))) {
-        fileModifiedAt = new Date(parseInt(req.body.lastModified));
-        console.log(`Using client-provided file modification date: ${fileModifiedAt}`);
-      } else {
-        // Fallback: check if we can extract from file stats
-        const stats = fs.statSync((req as any).file.path);
-        fileModifiedAt = stats.mtime;
-        console.log(`Using server file stats date: ${fileModifiedAt}`);
-      }
-      
-      console.log(`File uploaded: ${(req as any).file.originalname}`);
-      console.log(`Final file modification date: ${fileModifiedAt}`);
-      console.log(`Current time: ${new Date()}`);
-
-      const uploadRecord = await storage.createUpload({
-        filename: (req as any).file.filename,
-        originalName: (req as any).file.originalname,
-        type: "excel",
-        uploadedBy: (req as any).user.id,
-        fileModifiedAt: fileModifiedAt,
-      });
-
-      // Process Excel file in background
-      processExcelFile((req as any).file.path, uploadRecord.id);
-
-      res.status(201).json(uploadRecord);
-    } catch (error) {
-      console.error("Excel upload error:", error);
-      res.status(500).json({ message: "Failed to upload file" });
-    }
+      if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
+      let fileMod = new Date();
+      if (req.body.lastModified && !isNaN(Number(req.body.lastModified))) fileMod = new Date(Number(req.body.lastModified));
+      else fileMod = fs.statSync(req.file.path).mtime;
+      const record = await storage.createUpload({ filename: req.file.filename, originalName: req.file.originalname, type: 'excel', uploadedBy: req.user.id, fileModifiedAt: fileMod });
+      processExcelFile(req.file.path, record.id);
+      res.status(201).json(record);
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to upload file" }); }
   });
 
-  // Database cleanup route
-  app.delete("/api/database/clear", requireAdmin, async (req: Request, res: Response) => {
+  app.post("/api/uploads/pdf", requireAdmin, upload.single("file"), async (req, res): Promise<void> => {
     try {
-      await storage.clearAllData();
-      console.log("Database cleared successfully");
-      res.json({ message: "Database cleared successfully" });
-    } catch (error) {
-      console.error("Database clear error:", error);
-      res.status(500).json({ message: "Failed to clear database" });
-    }
+      if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
+      const record = await storage.createUpload({ filename: req.file.filename, originalName: req.file.originalname, type: 'pdf', uploadedBy: req.user.id });
+      processPdfFile(req.file.path, record.id);
+      res.status(201).json(record);
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to upload file" }); }
   });
 
-
-
-  app.post("/api/uploads/pdf", requireAdmin, upload.single("file"), async (req: Request, res: Response) => {
-    try {
-      if (!(req as any).file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      const uploadRecord = await storage.createUpload({
-        filename: (req as any).file.filename,
-        originalName: (req as any).file.originalname,
-        type: "pdf",
-        uploadedBy: (req as any).user.id,
-      });
-
-      // Process PDF file in background
-      processPdfFile((req as any).file.path, uploadRecord.id);
-
-      res.status(201).json(uploadRecord);
-    } catch (error) {
-      console.error("PDF upload error:", error);
-      res.status(500).json({ message: "Failed to upload file" });
-    }
+  app.get("/api/uploads", requireAdmin, async (req, res): Promise<void> => {
+    try { const list = await storage.getUploads(); res.json(list); } catch (e) { console.error(e); res.status(500).json({ message: "Failed to fetch uploads" }); }
   });
 
-  app.get("/api/uploads", requireAdmin, async (req: Request, res: Response) => {
-    try {
-      const uploads = await storage.getUploads();
-      res.json(uploads);
-    } catch (error) {
-      console.error("Get uploads error:", error);
-      res.status(500).json({ message: "Failed to fetch uploads" });
-    }
+  app.delete("/api/database/clear", requireAdmin, async (req, res): Promise<void> => {
+    try { await storage.clearAllData(); res.json({ message: "Database cleared successfully" }); } catch (e) { console.error(e); res.status(500).json({ message: "Failed to clear database" }); }
   });
 
-  // User management routes (admin only)
-  app.get("/api/users", requireAdmin, async (req: Request, res: Response) => {
-    try {
-      const users = await storage.getAllUsers();
-      res.json(users.map(user => ({
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      })));
-    } catch (error) {
-      console.error("Get users error:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
+  // Users
+  app.get("/api/users", requireAdmin, async (req, res): Promise<void> => {
+    try { const list = (await storage.getAllUsers()).map(u => ({ id: u.id, username: u.username, name: u.name, email: u.email, role: u.role, isActive: u.isActive, createdAt: u.createdAt, updatedAt: u.updatedAt })); res.json(list); } catch (e) { console.error(e); res.status(500).json({ message: "Internal server error" }); }
   });
 
-  app.post("/api/users", requireAdmin, async (req: Request, res: Response) => {
+  app.post("/api/users", requireAdmin, async (req, res): Promise<void> => {
     try {
-      const userValidation = insertUserSchema.safeParse(req.body);
-      if (!userValidation.success) {
-        return res.status(400).json({ message: "Invalid user data", errors: userValidation.error.errors });
-      }
-      
-      const newUser = await storage.createUser(userValidation.data);
-      res.status(201).json({
-        id: newUser.id,
-        username: newUser.username,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        isActive: newUser.isActive,
-        createdAt: newUser.createdAt
-      });
-    } catch (error: any) {
-      console.error("Create user error:", error);
-      if (error.code === '23505') { // Unique constraint violation
-        res.status(409).json({ message: "Username already exists" });
-      } else {
-        res.status(500).json({ message: "Internal server error" });
-      }
-    }
+      const parse = insertUserSchema.safeParse(req.body);
+      if (!parse.success) { res.status(400).json({ message: "Invalid user data", errors: parse.error.issues }); return; }
+      const u = await storage.createUser(parse.data);
+      res.status(201).json({ id: u.id, username: u.username, name: u.name, email: u.email, role: u.role, isActive: u.isActive, createdAt: u.createdAt });
+    } catch (e: any) { console.error(e); if (e.code==='23505') { res.status(409).json({ message: "Username already exists" }); return; } res.status(500).json({ message: "Internal server error" }); }
   });
 
-  app.put("/api/users/:id", requireAdmin, async (req: Request, res: Response) => {
+  app.put("/api/users/:id", requireAdmin, async (req, res): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-      const updateData = req.body;
-      
-      const updatedUser = await storage.updateUser(id, updateData);
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      res.json({
-        id: updatedUser.id,
-        username: updatedUser.username,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        isActive: updatedUser.isActive,
-        updatedAt: updatedUser.updatedAt
-      });
-    } catch (error) {
-      console.error("Update user error:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
+      const uid = parseInt(req.params.id, 10);
+      const updated = await storage.updateUser(uid, req.body);
+      if (!updated) { res.status(404).json({ message: "User not found" }); return; }
+      res.json({ id: updated.id, username: updated.username, name: updated.name, email: updated.email, role: updated.role, isActive: updated.isActive, updatedAt: updated.updatedAt });
+    } catch (e) { console.error(e); res.status(500).json({ message: "Internal server error" }); }
   });
 
-  app.delete("/api/users/:id", requireAdmin, async (req: Request, res: Response) => {
+  app.delete("/api/users/:id", requireAdmin, async (req, res): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-      
-      if (id === (req as any).user?.id) {
-        return res.status(400).json({ message: "Cannot delete your own account" });
-      }
-      
-      const deleted = await storage.deleteUser(id);
-      if (!deleted) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
+      const uid = parseInt(req.params.id, 10);
+      if (uid === req.user.id) { res.status(400).json({ message: "Cannot delete own account" }); return; }
+      const ok = await storage.deleteUser(uid);
+      if (!ok) { res.status(404).json({ message: "User not found" }); return; }
       res.json({ message: "User deleted successfully" });
-    } catch (error) {
-      console.error("Delete user error:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
+    } catch (e) { console.error(e); res.status(500).json({ message: "Internal server error" }); }
   });
 
-  // Economic parameters
-  app.get("/api/parameters", requireAuth, async (req: Request, res: Response) => {
-    try {
-      const parameters = await storage.getAllEconomicParameters();
-      res.json(parameters);
-    } catch (error) {
-      console.error("Get parameters error:", error);
-      res.status(500).json({ message: "Failed to fetch parameters" });
-    }
+  // Parameters
+  app.get("/api/parameters", requireAuth, async (req, res): Promise<void> => {
+    try { const params = await storage.getAllEconomicParameters(); res.json(params); } catch (e) { console.error(e); res.status(500).json({ message: "Failed to fetch parameters" }); }
   });
 
-  app.put("/api/parameters/:name", requireAdmin, async (req: Request, res: Response) => {
+  app.put("/api/parameters/:name", requireAdmin, async (req, res): Promise<void> => {
     try {
       const { name } = req.params;
       const { value } = req.body;
-      
-      if (typeof value !== 'number') {
-        return res.status(400).json({ message: "Value must be a number" });
-      }
-      
-      const parameter = await storage.updateEconomicParameter(name, value);
-      res.json(parameter);
-    } catch (error) {
-      console.error("Update parameter error:", error);
-      res.status(500).json({ message: "Failed to update parameter" });
-    }
+      if (typeof value !== 'number') { res.status(400).json({ message: "Value must be a number" }); return; }
+      const p = await storage.updateEconomicParameter(name, value);
+      res.json(p);
+    } catch (e) { console.error(e); res.status(500).json({ message: "Failed to update parameter" }); }
   });
 
-  // Initialize admin user and default parameters
+  // Init and background
   async function initializeAdmin() {
     try {
-      const adminUser = await storage.getUserByUsername("admin");
-      if (!adminUser) {
-        await storage.createUser({
-          username: "admin",
-          password: "admin123",
-          role: "admin",
-          name: "Administrador",
-        });
-        console.log("Admin user created with username: admin, password: admin123");
-      }
-      
-      // Initialize default economic parameters
-      const defaultParams = [
-        { name: "CDI", value: 14.65, description: "Taxa CDI anual (%)" },
-        { name: "IPCA", value: 4.5, description: "IPCA dos últimos 12 meses (%)" },
-        { name: "SELIC", value: 13.75, description: "Taxa SELIC anual (%)" },
+      const admin = await storage.getUserByUsername("admin");
+      if (!admin) await storage.createUser({ username: "admin", password: "admin123", role: "admin", name: "Administrador" });
+      const defaults = [
+        { name: 'CDI', value: 14.65 },
+        { name: 'IPCA', value: 4.5 },
+        { name: 'SELIC', value: 13.75 },
       ];
-      
-      for (const param of defaultParams) {
-        try {
-          const existingParam = await storage.getEconomicParameter(param.name);
-          if (!existingParam) {
-            await storage.updateEconomicParameter(param.name, param.value);
-            console.log(`Created default parameter: ${param.name} = ${param.value}%`);
-          }
-        } catch (error: any) {
-          console.log(`Parameter ${param.name} initialization skipped:`, error.message);
-        }
+      for (const dp of defaults) {
+        const existing = await storage.getEconomicParameter(dp.name);
+        if (!existing) await storage.updateEconomicParameter(dp.name, dp.value);
       }
-    } catch (error) {
-      console.error("Failed to initialize admin user:", error);
-    }
+    } catch (e) { console.error(e); }
   }
 
-  // Background processing functions
+ // Background processing functions
   async function processExcelFile(filePath: string, uploadId: number) {
     try {
       console.log(`Processing Excel file: ${filePath}`);
-      
+
       // Get upload record to access file modification date
       const uploadRecord = await storage.getUploads().then(uploads => 
         uploads.find(u => u.id === uploadId)
       );
-      
+
       // Use the file modification date from the upload record as the data timestamp
       const fileModificationDate = uploadRecord?.fileModifiedAt || new Date();
-      
+
       console.log(`Processing file for upload ID: ${uploadId}`);
       console.log(`File modification date from upload: ${fileModificationDate}`);
       console.log(`This will be used as the historical data timestamp`);
-      
+
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       console.log(`Sheet name: ${sheetName}`);
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet);
       console.log(`Data rows found: ${data.length}`);
-      
+
       if (data.length > 0) {
         console.log("First row sample:", JSON.stringify(data[0], null, 2));
         console.log("Available columns:", Object.keys(data[0] as any));
@@ -741,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 /(\d{4})-(\d{1,2})-(\d{1,2})/,   // YYYY-MM-DD
                 /(\d{1,2})-(\d{1,2})-(\d{4})/    // DD-MM-YYYY
               ];
-              
+
               for (const format of dateFormats) {
                 const match = excelDate.match(format);
                 if (match) {
@@ -782,7 +423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let assetType = String(findColumnValue([
             'TIPO', 'Tipo', 'tipo', 'Type', 'type', 'CATEGORIA', 'Categoria', 'categoria'
           ]));
-          
+
           if (!assetType) {
             if (/^CRA\d+/.test(assetCode)) {
               assetType = 'CRA';
@@ -857,20 +498,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'PU', 'pu', 'Pu', 'PRECO UNITARIO', 'Preco Unitario', 'preco_unitario',
                 'UNIT PRICE', 'Unit Price', 'unit_price', 'VALOR UNITARIO', 'Valor Unitario', 'valor_unitario'
               ]);
-              
+
               if (!puValue || puValue === '' || puValue === null || puValue === undefined) {
                 console.log(`No PU value found for asset ${assetCode}, using default 1000.00`);
                 return null; // Return null instead of default value when no PU is found
               }
-              
+
               let numericValue;
               if (typeof puValue === 'string') {
                 // Handle Brazilian decimal format (1.234,56) and international format (1,234.56)
                 let cleanValue = puValue.toString().trim();
-                
+
                 // Remove currency symbols
                 cleanValue = cleanValue.replace(/[R$\s]/g, '');
-                
+
                 // Handle different decimal formats
                 if (cleanValue.includes(',') && cleanValue.includes('.')) {
                   // Brazilian format with thousands separator: 1.234,56 -> 1234.56
@@ -885,18 +526,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }
                 }
                 // If only dots, assume it's already in correct format
-                
+
                 numericValue = parseFloat(cleanValue);
               } else {
                 numericValue = parseFloat(puValue);
               }
-              
+
               // Validate the number
               if (isNaN(numericValue) || numericValue <= 0) {
                 console.log(`Invalid PU value "${puValue}" for asset ${assetCode}, skipping PU`);
                 return null;
               }
-              
+
               console.log(`Asset ${assetCode} PU: "${puValue}" -> ${numericValue.toFixed(2)}`);
               return numericValue.toFixed(2);
             })()),
@@ -928,13 +569,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateUploadStatus(uploadId, "completed", actualImported);
       console.log(`Upload ${uploadId} completed with ${actualImported} assets imported`);
-      
+
       // Clean up uploaded file
       fs.unlinkSync(filePath);
     } catch (error) {
       console.error("Excel processing error:", error);
       await storage.updateUploadStatus(uploadId, "failed", 0, (error as any).message);
-      
+
       // Clean up uploaded file
       fs.unlinkSync(filePath);
     }
@@ -945,13 +586,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For now, just mark as completed
       // In a real implementation, you would use a PDF parsing library
       await storage.updateUploadStatus(uploadId, "completed", 0);
-      
+
       // Clean up uploaded file
       fs.unlinkSync(filePath);
     } catch (error) {
       console.error("PDF processing error:", error);
       await storage.updateUploadStatus(uploadId, "failed", 0, (error as any).message);
-      
+
       // Clean up uploaded file
       fs.unlinkSync(filePath);
     }

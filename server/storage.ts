@@ -20,7 +20,7 @@ import {
   type InsertEconomicParameter,
   type Upload,
   type InsertUpload,
-} from "@shared/schema";
+} from "./schema";
 
 
 
@@ -125,7 +125,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(users)
       .set({ isActive: false })
       .where(eq(users.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getAllAssets(): Promise<Asset[]> {
@@ -175,7 +175,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(assets)
       .set({ isActive: false })
       .where(eq(assets.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async searchAssets(filters: {
@@ -295,7 +295,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(portfolios)
       .set({ isActive: false })
       .where(eq(portfolios.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getPortfolioAssets(portfolioId: number): Promise<(PortfolioAsset & { asset: Asset })[]> {
@@ -374,7 +374,7 @@ export class DatabaseStorage implements IStorage {
   async removeAssetFromPortfolio(portfolioId: number, assetId: number): Promise<boolean> {
     const result = await db.delete(portfolioAssets)
       .where(and(eq(portfolioAssets.portfolioId, portfolioId), eq(portfolioAssets.assetId, assetId)));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getAllEconomicParameters(): Promise<EconomicParameter[]> {
