@@ -1,3 +1,4 @@
+import "../types/global"; // Caminho relativo correto
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import cookieParser from "cookie-parser";
