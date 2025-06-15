@@ -47,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const decoded = Buffer.from(token, 'base64').toString();
         const [userId] = decoded.split(':');
         if (userId && !isNaN(parseInt(userId))) {
-          (req.session as any).userId = parseInt(userId);
+          req.session.userId = parseInt(userId);
           return next();
         }
       } catch (e) {
@@ -62,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const decoded = Buffer.from(authToken, 'base64').toString();
         const [userId] = decoded.split(':');
         if (userId && !isNaN(parseInt(userId))) {
-          (req.session as any).userId = parseInt(userId);
+          req.session.userId = parseInt(userId);
           return next();
         }
       } catch (e) {
@@ -87,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const [userIdStr] = decoded.split(':');
           if (userIdStr && !isNaN(parseInt(userIdStr))) {
             userId = parseInt(userIdStr);
-            (req.session as any).userId = userId;
+            req.session.userId = userId;
           }
         } catch (e) {
           // Invalid token
@@ -103,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const [userIdStr] = decoded.split(':');
             if (userIdStr && !isNaN(parseInt(userIdStr))) {
               userId = parseInt(userIdStr);
-              (req.session as any).userId = userId;
+              req.session.userId = userId;
             }
           } catch (e) {
             // Invalid token
@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: "Admin access required" });
     }
     
-    (req as any).user = user;
+    req.user = user;
     next();
   };
 
@@ -144,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      (req.session as any).userId = user.id;
+      req.session.userId = user.id;
       
       // Also set a simple token for frontend compatibility
       const token = Buffer.from(`${user.id}:${user.username}:${Date.now()}`).toString('base64');
@@ -179,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const user = await storage.getUser((req.session as any).userId);
+      const user = await storage.getUser(req.session.userId);
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
@@ -295,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio routes
   app.get("/api/portfolios", requireAuth, async (req, res) => {
     try {
-      const portfolios = await storage.getUserPortfolios((req.session as any).userId);
+      const portfolios = await storage.getUserPortfolios(req.session.userId);
       res.json(portfolios);
     } catch (error) {
       console.error("Get portfolios error:", error);
@@ -307,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const portfolioData = insertPortfolioSchema.parse({
         ...req.body,
-        userId: (req.session as any).userId,
+        userId: req.session.userId,
       });
       const portfolio = await storage.createPortfolio(portfolioData);
       res.status(201).json(portfolio);
@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user owns the portfolio
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -348,7 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -368,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -400,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -428,7 +428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -476,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filename: req.file.filename,
         originalName: req.file.originalname,
         type: "excel",
-        uploadedBy: (req as any).user.id,
+        uploadedBy: req.user.id,
         fileModifiedAt: fileModifiedAt,
       });
 
@@ -514,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filename: req.file.filename,
         originalName: req.file.originalname,
         type: "pdf",
-        uploadedBy: (req as any).user.id,
+        uploadedBy: req.user.id,
       });
 
       // Process PDF file in background
@@ -613,7 +613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       
-      if (id === (req as any).user?.id) {
+      if (id === req.user?.id) {
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
       
