@@ -47,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const decoded = Buffer.from(token, 'base64').toString();
         const [userId] = decoded.split(':');
         if (userId && !isNaN(parseInt(userId))) {
-          (req.session as any).userId = parseInt(userId);
+          req.session.userId = parseInt(userId);
           return next();
         }
       } catch (e) {
@@ -62,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const decoded = Buffer.from(authToken, 'base64').toString();
         const [userId] = decoded.split(':');
         if (userId && !isNaN(parseInt(userId))) {
-          (req.session as any).userId = parseInt(userId);
+          req.session.userId = parseInt(userId);
           return next();
         }
       } catch (e) {
@@ -87,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const [userIdStr] = decoded.split(':');
           if (userIdStr && !isNaN(parseInt(userIdStr))) {
             userId = parseInt(userIdStr);
-            (req.session as any).userId = userId;
+            req.session.userId = userId;
           }
         } catch (e) {
           // Invalid token
@@ -103,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const [userIdStr] = decoded.split(':');
             if (userIdStr && !isNaN(parseInt(userIdStr))) {
               userId = parseInt(userIdStr);
-              (req.session as any).userId = userId;
+              req.session.userId = userId;
             }
           } catch (e) {
             // Invalid token
@@ -144,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      (req.session as any).userId = user.id;
+      req.session.userId = user.id;
       
       // Also set a simple token for frontend compatibility
       const token = Buffer.from(`${user.id}:${user.username}:${Date.now()}`).toString('base64');
@@ -172,14 +172,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get("/api/auth/me", async (req, res) => {
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
       console.log("Session check:", req.session);
       if (!req.session?.userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const user = await storage.getUser((req.session as any).userId);
+      const user = await storage.getUser(req.session.userId);
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
@@ -193,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Asset routes
-  app.get("/api/assets", requireAuth, async (req, res) => {
+  app.get("/api/assets", requireAuth, async (req: Request, res: Response) => {
     try {
       const { type, indexer, minRate, couponMonth, couponMonths, issuer, asset } = req.query;
       
@@ -220,7 +220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/assets/:code/history", requireAuth, async (req, res) => {
+  app.get("/api/assets/:code/history", requireAuth, async (req: Request, res: Response) => {
     try {
       const { code } = req.params;
       const history = await storage.getAssetHistory(code);
@@ -231,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/assets", requireAdmin, async (req, res) => {
+  app.post("/api/assets", requireAdmin, async (req: Request, res: Response) => {
     try {
       const assetData = insertAssetSchema.parse(req.body);
       const asset = await storage.createAsset(assetData);
@@ -242,7 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/assets/:id", requireAdmin, async (req, res) => {
+  app.put("/api/assets/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const assetData = insertAssetSchema.partial().parse(req.body);
@@ -260,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assets cleanup route - MUST be before the :id route
-  app.delete("/api/assets/clear", requireAdmin, async (req, res) => {
+  app.delete("/api/assets/clear", requireAdmin, async (req: Request, res: Response) => {
     try {
       await storage.clearAllAssets();
       console.log("Assets cleared successfully");
@@ -271,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/assets/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/assets/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       
@@ -293,9 +293,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Portfolio routes
-  app.get("/api/portfolios", requireAuth, async (req, res) => {
+  app.get("/api/portfolios", requireAuth, async (req: Request, res: Response) => {
     try {
-      const portfolios = await storage.getUserPortfolios((req.session as any).userId);
+      const portfolios = await storage.getUserPortfolios(req.session.userId);
       res.json(portfolios);
     } catch (error) {
       console.error("Get portfolios error:", error);
@@ -303,11 +303,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/portfolios", requireAuth, async (req, res) => {
+  app.post("/api/portfolios", requireAuth, async (req: Request, res: Response) => {
     try {
       const portfolioData = insertPortfolioSchema.parse({
         ...req.body,
-        userId: (req.session as any).userId,
+        userId: req.session.userId,
       });
       const portfolio = await storage.createPortfolio(portfolioData);
       res.status(201).json(portfolio);
@@ -317,7 +317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/portfolios/:id/assets", requireAuth, async (req, res) => {
+  app.get("/api/portfolios/:id/assets", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const portfolio = await storage.getPortfolioById(id);
@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user owns the portfolio
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -339,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/portfolios/:id", requireAuth, async (req, res) => {
+  app.get("/api/portfolios/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const portfolio = await storage.getPortfolioById(id);
@@ -348,7 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -359,7 +359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/portfolios/:id", requireAuth, async (req, res) => {
+  app.put("/api/portfolios/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const portfolio = await storage.getPortfolioById(id);
@@ -368,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -386,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/portfolios/:id/assets", requireAuth, async (req, res) => {
+  app.post("/api/portfolios/:id/assets", requireAuth, async (req: Request, res: Response) => {
     try {
       const portfolioId = parseInt(req.params.id);
       
@@ -400,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -417,7 +417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/portfolios/:portfolioId/assets/:assetId", requireAuth, async (req, res) => {
+  app.delete("/api/portfolios/:portfolioId/assets/:assetId", requireAuth, async (req: Request, res: Response) => {
     try {
       const portfolioId = parseInt(req.params.portfolioId);
       const assetId = parseInt(req.params.assetId);
@@ -428,7 +428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Portfolio not found" });
       }
       
-      if (portfolio.userId !== (req.session as any).userId) {
+      if (portfolio.userId !== req.session.userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -446,9 +446,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload routes
-  app.post("/api/uploads/excel", requireAdmin, upload.single("file"), async (req, res) => {
+  app.post("/api/uploads/excel", requireAdmin, upload.single("file"), async (req: Request, res: Response) => {
     try {
-      if (!req.file) {
+      if (!(req as any).file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
@@ -463,25 +463,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Using client-provided file modification date: ${fileModifiedAt}`);
       } else {
         // Fallback: check if we can extract from file stats
-        const stats = fs.statSync(req.file.path);
+        const stats = fs.statSync((req as any).file.path);
         fileModifiedAt = stats.mtime;
         console.log(`Using server file stats date: ${fileModifiedAt}`);
       }
       
-      console.log(`File uploaded: ${req.file.originalname}`);
+      console.log(`File uploaded: ${(req as any).file.originalname}`);
       console.log(`Final file modification date: ${fileModifiedAt}`);
       console.log(`Current time: ${new Date()}`);
 
       const uploadRecord = await storage.createUpload({
-        filename: req.file.filename,
-        originalName: req.file.originalname,
+        filename: (req as any).file.filename,
+        originalName: (req as any).file.originalname,
         type: "excel",
         uploadedBy: (req as any).user.id,
         fileModifiedAt: fileModifiedAt,
       });
 
       // Process Excel file in background
-      processExcelFile(req.file.path, uploadRecord.id);
+      processExcelFile((req as any).file.path, uploadRecord.id);
 
       res.status(201).json(uploadRecord);
     } catch (error) {
@@ -491,7 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Database cleanup route
-  app.delete("/api/database/clear", requireAdmin, async (req, res) => {
+  app.delete("/api/database/clear", requireAdmin, async (req: Request, res: Response) => {
     try {
       await storage.clearAllData();
       console.log("Database cleared successfully");
@@ -504,21 +504,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  app.post("/api/uploads/pdf", requireAdmin, upload.single("file"), async (req, res) => {
+  app.post("/api/uploads/pdf", requireAdmin, upload.single("file"), async (req: Request, res: Response) => {
     try {
-      if (!req.file) {
+      if (!(req as any).file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
       const uploadRecord = await storage.createUpload({
-        filename: req.file.filename,
-        originalName: req.file.originalname,
+        filename: (req as any).file.filename,
+        originalName: (req as any).file.originalname,
         type: "pdf",
         uploadedBy: (req as any).user.id,
       });
 
       // Process PDF file in background
-      processPdfFile(req.file.path, uploadRecord.id);
+      processPdfFile((req as any).file.path, uploadRecord.id);
 
       res.status(201).json(uploadRecord);
     } catch (error) {
@@ -527,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/uploads", requireAdmin, async (req, res) => {
+  app.get("/api/uploads", requireAdmin, async (req: Request, res: Response) => {
     try {
       const uploads = await storage.getUploads();
       res.json(uploads);
@@ -538,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User management routes (admin only)
-  app.get("/api/users", requireAdmin, async (req, res) => {
+  app.get("/api/users", requireAdmin, async (req: Request, res: Response) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users.map(user => ({
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireAdmin, async (req, res) => {
+  app.post("/api/users", requireAdmin, async (req: Request, res: Response) => {
     try {
       const userValidation = insertUserSchema.safeParse(req.body);
       if (!userValidation.success) {
@@ -584,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", requireAdmin, async (req, res) => {
+  app.put("/api/users/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const updateData = req.body;
@@ -609,7 +609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/users/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       
@@ -630,7 +630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Economic parameters
-  app.get("/api/parameters", requireAuth, async (req, res) => {
+  app.get("/api/parameters", requireAuth, async (req: Request, res: Response) => {
     try {
       const parameters = await storage.getAllEconomicParameters();
       res.json(parameters);
@@ -640,7 +640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/parameters/:name", requireAdmin, async (req, res) => {
+  app.put("/api/parameters/:name", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { name } = req.params;
       const { value } = req.body;
