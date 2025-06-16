@@ -77,7 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) { res.status(401).json({ message: "Invalid credentials" }); return; }
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) { res.status(401).json({ message: "Invalid credentials" }); return; }
-      req.session.userId = user.id.toString();
+      req.session.userId = user.id;
       const token = Buffer.from(`${user.id}:${user.username}:${Date.now()}`).toString('base64');
       res.cookie('auth_token', token, { httpOnly: false, secure: false, maxAge: 86400000, sameSite: 'lax' });
       const { password: _, ...u } = user;
@@ -247,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fileMod = new Date();
       if (req.body.lastModified && !isNaN(Number(req.body.lastModified))) fileMod = new Date(Number(req.body.lastModified));
       else fileMod = fs.statSync(req.file.path).mtime;
-      const record = await storage.createUpload({ filename: req.file.filename, originalName: req.file.originalname, type: 'excel', uploadedBy: req.user.id, fileModifiedAt: fileMod });
+      const record = await storage.createUpload({ filename: req.file.filename, originalName: req.file.originalname, type: 'excel',uploadedBy: Number(req.user?.id), fileModifiedAt: fileMod });
       processExcelFile(req.file.path, record.id);
       res.status(201).json(record);
     } catch (e) { console.error(e); res.status(500).json({ message: "Failed to upload file" }); }
@@ -256,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/uploads/pdf", requireAdmin, upload.single("file"), async (req, res): Promise<void> => {
     try {
       if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
-      const record = await storage.createUpload({ filename: req.file.filename, originalName: req.file.originalname, type: 'pdf', uploadedBy: req.user.id });
+      const record = await storage.createUpload({ filename: req.file.filename, originalName: req.file.originalname, type: 'pdf',uploadedBy: Number(req.user?.id)});
       processPdfFile(req.file.path, record.id);
       res.status(201).json(record);
     } catch (e) { console.error(e); res.status(500).json({ message: "Failed to upload file" }); }
@@ -296,7 +296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/users/:id", requireAdmin, async (req, res): Promise<void> => {
     try {
       const uid = parseInt(req.params.id, 10);
-      if (uid === req.user.id) { res.status(400).json({ message: "Cannot delete own account" }); return; }
+      if (uid === Number(req.user?.id)){ res.status(400).json({ message: "Cannot delete own account" }); return; }
       const ok = await storage.deleteUser(uid);
       if (!ok) { res.status(404).json({ message: "User not found" }); return; }
       res.json({ message: "User deleted successfully" });

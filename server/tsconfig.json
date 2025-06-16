@@ -12,6 +12,7 @@
     "typeRoots": ["./node_modules/@types", "./types"],  // <- inclui sua pasta /types
     "types": ["node"] // <- não precisa incluir "./types" aqui
   },
-  "include": ["server", "types"], // <- Garante que os arquivos da pasta 'types' são processados
+  //"include": ["server", "types"], // <- Garante que os arquivos da pasta 'types' são processados
+"include": ["./**/*.ts", "./types"],
   "exclude": ["node_modules"]
 }
